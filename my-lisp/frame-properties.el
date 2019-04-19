@@ -5,14 +5,21 @@
 
 ;;; Color the frame monochrome for maximum contrast
 ;;;Re-define the frame colors (ala: yellow monochrome)
-(defun acs-recolorize-frame-vt220 ()
+(defun acs-recolorize-frame-vt220 (&optional frame)
   (interactive)
     (progn 
-      (set-foreground-color "goldenrod") 
+      ;;(set-foreground-color "goldenrod")
+      (set-foreground-color "green") 
       (set-background-color "black")))
 
 ;;; Re-colorize Initial Frame
 (acs-recolorize-frame-vt220)
+
+
+;;; Frame Colors
+(add-to-list 'default-frame-alist '(foreground-color . "goldenrod"))
+(add-to-list 'default-frame-alist '(background-color . "black"))
+(add-to-list 'default-frame-alist '(cursor-color . "green"))
 
 ;;; Maximize-frame
 ;;;

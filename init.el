@@ -10,6 +10,8 @@
 (if (equal system-type 'windows-nt)
     (setq load-path (cons "c:/emacs/site-lisp" load-path)))
 
+(setq inhibit-startup-buffer-menu t)
+
 ;;;; --------------------------------------------------------------------------
 ;;;;				     MELPA
 ;;;; --------------------------------------------------------------------------
@@ -738,16 +740,18 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;;;				   ESV Bible
 ;;;; --------------------------------------------------------------------------
 
-(require 'esv)
+(if (equal system-type 'windows-nt)
+    (progn
+      (require 'esv)
 
-;;; C-c e looks up a passage and displays it in a pop-up window
-(define-key global-map [(control c) ?e] 'esv-passage)
+      ;; C-c e looks up a passage and displays it in a pop-up window
+      (define-key global-map [(control c) ?e] 'esv-passage)
 
-;;; C-c i inserts an ESV passage in plain-text format at point
-(define-key global-map [(control c) ?i] 'esv-insert-passage)
+      ;; C-c i inserts an ESV passage in plain-text format at point
+      (define-key global-map [(control c) ?i] 'esv-insert-passage)
 
-;;; "TEST" or "IP"
-(setq esv-key "IP")
+      ;; "TEST" or "IP"
+      (setq esv-key "IP")))
 
 ;;;(add-hook 'text-mode-hook 'turn-on-esv-mode)
 ;;;(add-hook 'org-mode-hook 'turn-on-esv-mode)
