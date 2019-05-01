@@ -50,8 +50,8 @@
 	(load-file customization-file)
       (message (concat "Cannot Load: " customization-file)))))
       
-
-;;; Start Emacs server 
+;;; Start Emacs server
+;;; Started in .xinitrc
 ;;(server-start)
 
 ;;; Allow text files to define local variables
@@ -62,9 +62,6 @@
 
 ;;; Start IELM - Inferior Emacs Lisp Mode (REPL)
 ;;(ielm)
-
-;;; Frame Transparency
-(set-frame-parameter (selected-frame) 'alpha '(80 50))
 
 ;;; Company Mode
 (eval-after-load "company"
@@ -124,14 +121,18 @@
 ;;; Set mouse color
 (set-mouse-color "black")
 
-;;; Frame Title (%b = buffer name, %f = filename)
-(setq frame-title-format '("Andrew Suttles' Emacs: %b (%m) <" 
-			   default-directory ">"))
 
 ;;; Size the Main Frame and Position is ROUGHLY in center of screen
-(set-frame-width (selected-frame) 100)
-;;;(set-frame-height (selected-frame) 50)
-;;;(set-frame-position (selected-frame) 80 40)
+(if (not (null window-system))
+    (progn
+
+      ;; Frame Title (%b = buffer name, %f = filename)
+      (setq frame-title-format '("Andrew Suttles' Emacs: %b (%m) <" 
+			   default-directory ">"))
+
+      (set-frame-width (selected-frame) 100)
+      (set-frame-height (selected-frame) 50)
+      (set-frame-position (selected-frame) 80 40)))
 
 ;; Set dedicated frames
 (setq same-window-buffer-names '("*inferior-lisp*"
@@ -148,7 +149,10 @@
 
 
 ;;; Custom Configurations
-(acs-safe-customization-load "frame-properties.el")
+
+;;; Custom frame properties when NOT in terminal
+
+;;;(acs-safe-customization-load "frame-properties.el")
 
 
 ;;;; --------------------------------------------------------------------------
@@ -885,8 +889,7 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;;;; [DELETE] and [BACKSPACE]
 
-;;; Delete region w/o adding to kill ring
-(global-set-key [(control delete)] 'acs-delete-region-or-backward-kill-word)
+(global-set-key [\d] 'backward-delete-char)
 
 ;;; Delete to beginning of line
 (global-set-key [(meta backspace)] 

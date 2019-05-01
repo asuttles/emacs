@@ -13,13 +13,18 @@
       (set-background-color "black")))
 
 ;;; Re-colorize Initial Frame
-(acs-recolorize-frame-vt220)
+;;;(acs-recolorize-frame-vt220)
 
 
 ;;; Frame Colors
-(add-to-list 'default-frame-alist '(foreground-color . "goldenrod"))
-(add-to-list 'default-frame-alist '(background-color . "black"))
-(add-to-list 'default-frame-alist '(cursor-color . "green"))
+(if (not (null window-system))
+    (progn
+      (add-to-list 'default-frame-alist '(foreground-color . "goldenrod"))
+      (add-to-list 'default-frame-alist '(background-color . "black"))
+      (add-to-list 'default-frame-alist '(cursor-color . "cyan"))
+
+      ;; Frame Transparency
+      (add-to-list 'default-frame-alist '(alpha . (80 . 50)))))
 
 ;;; Maximize-frame
 ;;;
