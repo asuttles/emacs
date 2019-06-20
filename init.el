@@ -935,6 +935,9 @@ with one containing the contents of the directory.  Otherwise, invoke
 (global-set-key "." 'acs-last-window)
 
 
+;;; BACKSPACE with CAPS Lock
+(global-set-key "" 'backward-delete-char-untabify)
+
 ;;;; OVERLOAD
 
 ;;; Overload the meta-q to fill region or paragraph
