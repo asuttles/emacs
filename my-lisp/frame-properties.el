@@ -24,7 +24,10 @@
       (add-to-list 'default-frame-alist '(cursor-color . "cyan"))
 
       ;; Frame Transparency
-      (add-to-list 'default-frame-alist '(alpha . (80 . 50)))))
+      (add-to-list 'default-frame-alist '(alpha . (90 . 50)))))
+
+;;; Frame Alpha
+(set-frame-parameter (selected-frame) 'alpha '(90 . 50))
 
 ;;; Maximize-frame
 ;;;

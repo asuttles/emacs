@@ -11,6 +11,8 @@
     (setq load-path (cons "c:/emacs/site-lisp" load-path)))
 
 (setq inhibit-startup-buffer-menu t)
+(setq initial-buffer-choice 'nil) 
+(setq inhibit-startup-screen t)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     MELPA
@@ -151,8 +153,7 @@
 ;;; Custom Configurations
 
 ;;; Custom frame properties when NOT in terminal
-
-;;;(acs-safe-customization-load "frame-properties.el")
+(acs-safe-customization-load "frame-properties.el")
 
 
 ;;;; --------------------------------------------------------------------------
