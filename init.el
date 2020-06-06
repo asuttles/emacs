@@ -485,8 +485,8 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;(global-auto-complete-mode t)
 
 ;; Start/Stop completion
-(setq ac-auto-start nil)
-(global-set-key "\M-/" 'ac-start)
+;;(setq ac-auto-start nil)
+;;(global-set-key "\M-/" 'ac-start)
 ;;(define-key ac-complete-mode-map "\M-/" 'ac-stop)
 
 ;; Use C-n/C-p to select candidates
@@ -502,6 +502,14 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; ---------------
 ;; (require 'compile)
 
+(setq c-default-style "stroustrup"
+      c-basic-offset 2)
+
+;;; C Completion
+(eval-after-load "company"
+  '(add-to-list 'company-backends 'company-c-headers))
+
+;;; Default C Compile Command
 (add-hook 'c-mode-hook
 	  (lambda ()
 	    (unless (or
@@ -957,8 +965,14 @@ with one containing the contents of the directory.  Otherwise, invoke
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (paredit geiser slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode))))
+    (company-c-headers paredit geiser slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode))))
 
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
 ;;; Local Variables: ***
 ;;; fill-column:80 ***
 ;;; comment-column:0 ***
