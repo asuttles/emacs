@@ -8,7 +8,7 @@
 (message "[reading file ~/init.el]")
 
 (if (equal system-type 'windows-nt)
-    (setq load-path (cons "c:/emacs/site-lisp" load-path)))
+    (setq load-path (cons "~/.emacs.d/site-lisp" load-path)))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     MELPA
@@ -23,12 +23,15 @@
 	     '("org" . "https://orgmode.org/elpa/")
 	     t)
 
-;;;;(add-to-list 'package-archives
-;;;;             '("melpa-stable" . "https://stable.melpa.org/packages/")
-;;;;	     t)
+;; Explicitly set gpg dir location
+(setq package-gnupghome-dir "/home/asuttles/.emacs.d/elpa/gnupg")
 
-;;;; (package-refresh-contents)
-;;;; (package-initialize)
+;;(add-to-list 'package-archives
+;;             '("melpa-stable" . "https://stable.melpa.org/packages/")
+;;	     t)
+
+;; (package-refresh-contents)
+;; (package-initialize)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    GENERAL
@@ -65,13 +68,19 @@
 (set-frame-parameter (selected-frame) 'alpha '(80 50))
 
 ;;; Company Mode
-(eval-after-load "company"
-  '(add-to-list 'company-backends 'company-anaconda))
+;; (eval-after-load "company"
+;;   '(add-to-list 'company-backends 'company-anaconda))
+(require 'company)
+;;;(setq company-global-modes '(c-mode go-mode))
+;;;(add-hook 'after-init-hook 'global-company-mode)
 
-(add-hook 'after-init-hook 'global-company-mode)
+;;; Global snippet mode
+(yas-global-mode 1)
 
 ;;; Define where backups are stored
 (setq backup-directory-alist (quote ((".*" . "~/.backups"))))
+
+(setq tab-width 4)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			      REMOTE FILE EDITING
@@ -93,7 +102,9 @@
 ;;; Turn off toolbar/menubar/scroll bar to maximize real estate
 (tool-bar-mode -1)
 (menu-bar-mode -1)
-(scroll-bar-mode -1)
+
+(if (display-graphic-p) ; No scroll-bars in Console
+    (scroll-bar-mode -1))
 
 ;;; Stop cursor from blinking
 (blink-cursor-mode 0)
@@ -148,7 +159,6 @@
 ;;; Custom Configurations
 (acs-safe-customization-load "frame-properties.el")
 
-
 ;;;; --------------------------------------------------------------------------
 ;;;;			       WINDOW PROPERTIES
 ;;;; --------------------------------------------------------------------------
@@ -178,7 +188,6 @@
 ;;; (setq display-time-interval 30)	; 30 Second Time Update Interval
 ;;(setq display-time-24hr-format nil)	; 12 hour format
 (display-time)				; Display the Day, Date, Time, Load
-
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FILE MANAGEMENT
@@ -244,7 +253,8 @@
 ;;;; --------------------------------------------------------------------------
 
 ;;; Allow the use of the mouse wheel
-(mwheel-install)
+(if (display-graphic-p) ; No mouse wheel in console
+    (mwheel-install))
 
 ;;; Preserve screen position when scrolling...
 (setq scroll-preserve-screen-position 1)
@@ -254,7 +264,6 @@
 
 ;;; Custom Configurations
 (acs-safe-customization-load "buffer-navigation.el")
-
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			       BUFFER MANAGEMENT
@@ -298,10 +307,13 @@
 ;;;(setq load-path (cons "~/org/org-7.8.10/lisp" load-path))
 ;;;(require 'org)
 
+;;; Turn on Company Mode in IELM Buffers
+(add-hook 'ielm-mode-hook 'company-mode)
+
 ;;; Configure org-mode
 (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
 (global-set-key "\C-cl" 'org-store-link)
-;;;(global-set-key "\C-ca" 'org-agenda)
+(global-set-key "\C-ca" 'org-agenda)
 ;;;(global-set-key "\C-cb" 'org-iswitchb)
 ; (setq-default major-mode 'org-mode)
 
@@ -313,16 +325,16 @@
 
 ;; Define Task States
 ;; Set state with c-c t
-;;;(setq org-todo-keywords
-;;;      '((sequence "TODO(t)" "STARTED(s!)" "|" "DONE(d!)")
+(setq org-todo-keywords
+      '((sequence "TODO" "WORK" "|" "DONE")))
 ;;;	(sequence "OPEN(o)" "CLOSED(c)")))
 
 ;; Task States Color Code
-;;;(setq org-todo-keyword-faces 
-;;;      (quote (("TODO" :foreground "red" :weight bold)
-;;;              ("STARTED" :foreground "yellow" :weight bold)
-;;;              ("DONE" :foreground "forest green" :weight normal)
-;;;              ("CANCELED" :foreground "gray" :weight normal))))
+(setq org-todo-keyword-faces 
+      (quote (("TODO" :foreground "red" :weight bold)
+              ("WORK" :foreground "yellow" :weight bold)
+              ("DONE" :foreground "forest green" :weight normal)
+              ("CANCELED" :foreground "gray" :weight normal))))
 
 ;; Commonly Used Tag List
 ;; (setq org-tag-alist '(("PLF_PROJECT" . ?P) ("Home" . ?H)))
@@ -365,6 +377,26 @@
 ;;;;;; Add diary entries
 ;;;(setq org-agenda-include-diary t)
 
+
+(require 'org-bullets)
+(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+
+
+(setq org-agenda-files (list "~/org/ft.org"
+			     "~/org/ang.org"
+			     "~/org/car.org"
+			     "~/org/shooting.org"
+			     "~/org/home.org"))
+
+;;; Sort Org Subtasks Under First-Level Header '* Tasks'
+(defun acs-sort-priorities ()
+  "Sort org Tasks by status, then priority"
+  (interactive)
+  (save-excursion
+    (goto-char (point-max))
+    (re-search-backward "^\\* Tasks" nil t)
+    (org-sort-entries t ?p)
+    (org-sort-entries t ?o)))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    ORG2BLOG
@@ -469,7 +501,6 @@ with one containing the contents of the directory.  Otherwise, invoke
 			    'acs-dired-do-operate-on-file)
 			  (define-key dired-mode-map "#"
 			    'acs-launch-windows-explorer)))))
-
 ;;;; --------------------------------------------------------------------------
 ;;;;				  PROGRAMMING
 ;;;; --------------------------------------------------------------------------
@@ -505,13 +536,13 @@ with one containing the contents of the directory.  Otherwise, invoke
 		     (format "gcc -std=c99 -Wall -g %s -o %s.exe"
 			     filename
 			     (file-name-sans-extension filename)))))))
-
 ;;; ---------------
 ;;;     PYTHON
 ;;; ---------------
 
 (if (string= system-type "windows-nt") 
-    (setq python-shell-interpreter "/mingw64/bin/python3"
+    ;;(setq python-shell-interpreter "/mingw64/bin/python3"
+    (setq python-shell-interpreter "python"
 	  python-shell-interpreter-args "-i"))
 (setq python-shell-completion-native-enable nil) ; Disable readline
 (setq python-indent-offset 4)
@@ -563,26 +594,37 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 
 ;;; ---------------
-;;;      GO
+;;;    GOLANG
 ;;; ---------------
 
+;;; Setup Go backend for Company
+(require 'company-go)
+
 ;;; Format code before saving
-;;; Define local keys for godef
-;;;(defun my-go-mode-hook ()
-;;;  (add-hook 'before-save-hook 'gofmt-before-save) ; gofmt before every save
-;;;  ; Godef jump key binding                                                      
-;;;  (local-set-key (kbd "M-.") 'godef-jump)
-;;;  (local-set-key (kbd "M-*") 'pop-tag-mark)
-;;;  )
-;;;
-;;;(add-hook 'go-mode-hook 'my-go-mode-hook)
+(defun my-go-mode-hook ()
+  (add-hook 'before-save-hook 'gofmt-before-save) ; gofmt before every save
+  (setq tab-width 4)				  ; reasonable tab width
+  ;; Godef jump key binding                                                      
+  (local-set-key (kbd "M-.") 'godef-jump)
+  ;; Yasnippet Minor Mode
+  (yas-minor-mode 1)
+  ;; eldoc minor mode
+  (eldoc-mode 1)
+  ;; Use Go company backend
+  (set (make-local-variable 'company-backends) '(company-go))
+  (company-mode))
+
+(add-hook 'go-mode-hook 'my-go-mode-hook)
+
+;;; enable flycheck
+;;;(add-hook 'go-mode-hook 'flycheck-mode)
 
 ;;; ---------------
 ;;;   COMMON LISP
 ;;; ---------------
 
 ;; Require common lisp extensions to elisp
-(require 'cl)
+;; (require 'cl)
 
 ;; Specify modes for Lisp file extensions
 (setq auto-mode-alist
@@ -590,7 +632,6 @@ with one containing the contents of the directory.  Otherwise, invoke
 		("\\.emacs$" . emacs-lisp-mode)
 		("\\.lisp$" . lisp-mode)
 		("\\.cl$" . lisp-mode)
-		("\\.scm$" . scheme-mode)
 		)auto-mode-alist))
 
 ;; Setup slime load-path and autoloads
@@ -599,11 +640,28 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;; Define CCL as inferior LISP
 (if (string= system-type "windows-nt") 
-    (setq inferior-lisp-program "c:/ccl/wx86cl64.exe"))
+    (setq inferior-lisp-program "~/install/ccl/wx86cl64.exe"))
 
-;; Load slime REPL
-;;(setq slime-contribs '(slime-repl slime-company))
+(load "C:/Users/asuttles/quicklisp/slime-helper.el")
 
+(slime-setup '(slime-fancy slime-company))
+
+;;; Slime Completions Map
+(define-key company-active-map (kbd "\C-n") 'company-select-next)
+(define-key company-active-map (kbd "\C-p") 'company-select-previous)
+(define-key company-active-map (kbd "\C-d") 'company-show-doc-buffer)
+(define-key company-active-map (kbd "M-.") 'company-show-location)
+
+;;; Load slime REPL
+;;; (setq slime-contribs '(slime-repl slime-company))
+
+;;; Custom Lookup Function for Common LISP Hyperspec
+;;; Use eww to lookup functions within emacs
+(defun hyperspec-lookup--hyperspec-lookup-w3m (orig-fun &rest args)
+  (let ((browse-url-browser-function 'eww-browse-url))
+    (apply orig-fun args)))
+
+(advice-add 'hyperspec-lookup :around #'hyperspec-lookup--hyperspec-lookup-w3m)
 
 ;; start slime automatically when we open a lisp file
 ;;(defun prelude-start-slime ()
@@ -626,20 +684,32 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;;(add-hook 'slime-mode-hook 'my-slime-mode-hook)
 
+
+;;; ---------------
+;;;       SML
+;;; ---------------
+
+(autoload 'sml-mode "sml-mode" "Major mode for editing SML." t)
+(autoload 'run-sml "sml-proc" "Run an inferior SML process." t)
+
+(add-to-list 'auto-mode-alist '("\\.\\(sml\\|sig\\)\\'" . sml-mode))
+
+(setq sml-program-name "poly")
+(setq sml-default-arg "-i")
+
 ;;; ---------------
 ;;;     SCHEME
 ;;; ---------------
 
-;;(setq scheme-program-name "csi -:c")
-;;(setq geiser-active-implementations '(chicken))
-(setq scheme-program-name "guile")
-(setq geiser-active-implementations '(guile))
-;;(setq load-path (cons "c:/msys64/usr/local/bin/" load-path))
+;;(require 'gambit)
 
-;; Paredit
-;; (autoload 'paredit-mode "paredit"
-;;   "Minor mode for pseudo-structurally editing Lisp code." t)
-;; (add-hook 'geiser-mode-hook (lambda () (paredit-mode +1)))
+(autoload 'gambit-inferior-mode "gambit" "Hook Gambit mode into cmuscheme.")
+(autoload 'gambit-mode "gambit" "Hook Gambit mode into scheme.")
+(add-hook 'inferior-scheme-mode-hook (function gambit-inferior-mode))
+(add-hook 'scheme-mode-hook (function gambit-mode))
+
+(add-to-list 'auto-mode-alist '("\\.scm$" . scheme-mode))
+(setq scheme-program-name "gsi -:d-")
 
 
 ;;;; --------------------------------------------------------------------------
@@ -664,7 +734,8 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 (if (string= system-type "windows-nt")
     (progn
-      (let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
+      ;;(let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
+      (let ((shell-executable "/usr/bin/bash"))
 	(if (file-executable-p shell-executable)
 	    (progn
 	      (setq explicit-shell-file-name shell-executable)
@@ -674,7 +745,6 @@ with one containing the contents of the directory.  Otherwise, invoke
 	      (add-hook 'comint-output-filter-functions 'comint-strip-ctrl-m nil t))))
       (setq w32-quote-process-args ?\")
       (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)))
-
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  MAN and INFO
@@ -689,6 +759,14 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;;; Man pages open in "this" frame, "this" window
 (setq Man-notify-method 'pushy)
+
+(defun my-info-mode-hook ()
+  (local-set-key "j" 'next-line)
+  (local-set-key "k" 'previous-line)
+  (local-set-key "l" 'recenter-top-bottom)
+  (local-set-key ";" 'Info-history-back))
+
+(add-hook 'Info-mode-hook 'my-info-mode-hook)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     E-MAIL
@@ -716,42 +794,41 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; Note: This aspell is non-curses downloaded from: http://aspell.net/win32/
 
 ;;; Put aspell on the PATH and Execution Path
-(if (string= system-type "windows-nt")
-    (progn
-      (cond ((and 
-	      (not (string-match "aspell" (getenv "PATH")))
-	      (file-exists-p "C:/aspell/bin")) 
-	     (setenv "PATH" (concat (getenv "PATH") ";C:\\aspell\\bin"))))
+;; (if (string= system-type "windows-nt")
+;;     (progn
+;;       (cond ((and 
+;; 	      (not (string-match "aspell" (getenv "PATH")))
+;; 	      (file-exists-p "C:/aspell/bin")) 
+;; 	     (setenv "PATH" (concat (getenv "PATH") ";C:\\aspell\\bin"))))
 
-      (setq exec-path 
-	    (append exec-path
-		    (cond ((member "C:/aspell/bin" exec-path) nil)
-			  (t (list "C:/aspell/bin")))))
+;;       (setq exec-path 
+;; 	    (append exec-path
+;; 		    (cond ((member "C:/aspell/bin" exec-path) nil)
+;; 			  (t (list "C:/aspell/bin")))))
 
-      ;; Define aspell as Spelling Program
-      (setq ispell-program-name "C:\\aspell\\bin\\aspell.exe")
+;;       ;; Define aspell as Spelling Program
+;;       (setq ispell-program-name "C:\\aspell\\bin\\aspell.exe")
 
-      ;; Flyspell 'list' Command
-      (setq ispell-list-command "list")))
+;;       ;; Flyspell 'list' Command
+;;       (setq ispell-list-command "list")))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				   ESV Bible
 ;;;; --------------------------------------------------------------------------
 
-(require 'esv)
+;;;(require 'esv)
 
 ;;; C-c e looks up a passage and displays it in a pop-up window
-(define-key global-map [(control c) ?e] 'esv-passage)
+;;;(define-key global-map [(control c) ?e] 'esv-passage)
 
 ;;; C-c i inserts an ESV passage in plain-text format at point
-(define-key global-map [(control c) ?i] 'esv-insert-passage)
+;;;(define-key global-map [(control c) ?i] 'esv-insert-passage)
 
 ;;; "TEST" or "IP"
-(setq esv-key "IP")
+;;;(setq esv-key "IP")
 
 ;;;(add-hook 'text-mode-hook 'turn-on-esv-mode)
 ;;;(add-hook 'org-mode-hook 'turn-on-esv-mode)
-
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				 IMAGE VIEWING
@@ -934,20 +1011,21 @@ with one containing the contents of the directory.  Otherwise, invoke
 (global-set-key [(meta q)] 'rayz-fill-region-or-paragraph)
 (global-set-key [(meta Q)] 'unfill-region)
 
-
-;;;; --------------------------------------------------------------------------
-;;;;				 CUSTOMIZATIONS
-;;;; --------------------------------------------------------------------------
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   (quote
-    (paredit geiser slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode))))
+   '(go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
 
+
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
 ;;; Local Variables: ***
 ;;; fill-column:80 ***
 ;;; comment-column:0 ***
