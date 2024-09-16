@@ -75,7 +75,7 @@
 ;;;(add-hook 'after-init-hook 'global-company-mode)
 
 ;;; Global snippet mode
-(yas-global-mode 1)
+;;(yas-global-mode 1)
 
 ;;; Define where backups are stored
 (setq backup-directory-alist (quote ((".*" . "~/.backups"))))
@@ -259,6 +259,9 @@
 ;;; Preserve screen position when scrolling...
 (setq scroll-preserve-screen-position 1)
 
+;;; Precise Scrolling
+(setq pixel-scroll-precision-mode t)
+
 ;;; Stop at the end of the file, do not add lines
 (setq next-line-add-newlines nil)
 
@@ -291,6 +294,12 @@
 
 ;;; Define buffer completions to ignore
 ;;; (setq iswitchb-buffer-ignore '("" ""))
+
+;;; Maximum Mini Window Height
+(setq max-mini-window-height 10)
+
+;;; Stop eglot from spamming minibuffer
+(setq eglot-report-progress nil)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    PRINTING
@@ -397,6 +406,44 @@
     (re-search-backward "^\\* Tasks" nil t)
     (org-sort-entries t ?p)
     (org-sort-entries t ?o)))
+
+;;;; --------------------------------------------------------------------------
+;;;;				  TREE-SITTER
+;;;; --------------------------------------------------------------------------
+
+;;; Use treesit-install-language-grammar to install grammar
+(setq treesit-language-source-alist
+   '((css "https://github.com/tree-sitter/tree-sitter-css")
+     (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+     (go "https://github.com/tree-sitter/tree-sitter-go")
+     (html "https://github.com/tree-sitter/tree-sitter-html")
+     (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+     (json "https://github.com/tree-sitter/tree-sitter-json")
+     (make "https://github.com/alemuller/tree-sitter-make")
+     (markdown "https://github.com/ikatyang/tree-sitter-markdown")))
+
+;;;; --------------------------------------------------------------------------
+;;;;				Web Programming
+;;;; --------------------------------------------------------------------------
+(require 'web-mode)
+(add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
+;;(add-to-list 'auto-mode-alist '("\\.css?\\'" . css-mode))
+(add-to-list 'auto-mode-alist '("\\.css?\\'" . css-ts-mode))
+;;(add-to-list 'auto-mode-alist '("\\.js?\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.js?\\'" . js-ts-mode))
+(setq web-mode-enable-current-element-highlight t)
+;;;(setq web-mode-enable-current-column-highlight t)
+
+(with-eval-after-load 'web-mode
+  (define-key web-mode-map (kbd "C-c C-v") 'browse-url-of-buffer))
+
+;;; Language Server for Javascript (and any other language)
+(use-package lsp-mode
+  :hook ((js-mode) . lsp-deferred)
+  :commands lsp)
+
+(use-package lsp-ui
+  :commands lsp-ui-mode)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    ORG2BLOG
@@ -539,35 +586,50 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; ---------------
 ;;;     PYTHON
 ;;; ---------------
+(use-package python-ts-mode
+  :hook ((python-ts-mode . eglot-ensure)
+	 (python-ts-mode . company-mode))
+  :mode (("\\.py\\'" . python-ts-mode))
+  :config
+  (setq python-indent-offset 4
+	python-shell-interpreter "python3"
+	python-shell-interpreter-args "-i"))
 
-(if (string= system-type "windows-nt") 
-    ;;(setq python-shell-interpreter "/mingw64/bin/python3"
-    (setq python-shell-interpreter "python"
-	  python-shell-interpreter-args "-i"))
-(setq python-shell-completion-native-enable nil) ; Disable readline
-(setq python-indent-offset 4)
+(use-package company
+  :ensure t
+  :config
+  (setq company-idle-delay 0.2
+	company-minimum-prefix-length 2))
+
+
+;;;(if (string= system-type "windows-nt") 
+;;;    ;;(setq python-shell-interpreter "/mingw64/bin/python3"
+;;;    (setq python-shell-interpreter "python3"
+;;;	  python-shell-interpreter-args "-i"))
+;;;(setq python-shell-completion-native-enable nil) ; Disable readline
+;;;(setq python-indent-offset 4)
 
 ;;; Anaconda Mode
-(add-hook 'python-mode-hook 'anaconda-mode)
+;;;(add-hook 'python-mode-hook 'anaconda-mode)
 
 ;;; Flycheck
-(add-hook 'python-mode-hook 'flycheck-mode)
+;(add-hook 'python-mode-hook 'flycheck-mode)
 
 ;;; PEP 8
-(add-hook 'python-mode-hook 'py-autopep8-enable-on-save)
+;(add-hook 'python-mode-hook 'py-autopep8-enable-on-save)
 
 ;;; Send Buffer to Python Shell
-(defun acs-python-send ()
-  (interactive)
-  (python-shell-send-buffer)
-  (python-shell-switch-to-shell)
-  )
-
-(eval-after-load "python"
-  '(progn
-     (define-key python-mode-map (kbd "C-c p") 'acs-python-send)
-     (define-key python-mode-map (kbd "C-h f") 'python-eldoc-at-point)
-     ))
+;;(defun acs-python-send ()
+;;  (interactive)
+;;  (python-shell-send-buffer)
+;;  (python-shell-switch-to-shell)
+;;  )
+;;
+;;(eval-after-load "python"
+;;  '(progn
+;;     (define-key python-mode-map (kbd "C-c p") 'acs-python-send)
+;;     (define-key python-mode-map (kbd "C-h f") 'python-eldoc-at-point)
+;;     ))
 
 ;;; ---------------
 ;;;    RACKET
@@ -583,15 +645,21 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; ---------------
 ;;;      NASM
 ;;; ---------------
-;;; Add nasm to execution path
-;;;(setenv "PATH"
-;;;	(concat "c:/acs/bin/nasm;" (getenv "PATH")))
 
-;;; Autoload `nasm-mode' when it is required
-;;; (autoload 'nasm-mode "nasm-mode" "nasm editing mode." t)
-;;; (add-to-list 'auto-mode-alist '("\\.asm$" . nasm-mode))
-;;; (add-to-list 'interpreter-mode-alist '("nasm" . nasm-mode))
+(use-package nasm-mode
+  :ensure t
+  :config
+  (add-hook 'asm-mode-hook 'nasm-mode))
 
+(add-hook 'nasm-mode-hook
+	  (lambda ()
+	    (set-fill-column 80)
+	    (setq comment-column 40)))
+
+(use-package x86-lookup
+  :ensure t
+  :config
+  (setq  x86-lookup-pdf "~/programming/asm/x86ref/intelVol2.pdf"))
 
 ;;; ---------------
 ;;;    GOLANG
@@ -602,6 +670,8 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;;; Format code before saving
 (defun my-go-mode-hook ()
+  "Stuff to do before loading go-mode"
+  (message "Go mode hook")
   (add-hook 'before-save-hook 'gofmt-before-save) ; gofmt before every save
   (setq tab-width 4)				  ; reasonable tab width
   ;; Godef jump key binding                                                      
@@ -732,19 +802,19 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;; Cygwin Shell System and Tools
 
-(if (string= system-type "windows-nt")
-    (progn
-      ;;(let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
-      (let ((shell-executable "/usr/bin/bash"))
-	(if (file-executable-p shell-executable)
-	    (progn
-	      (setq explicit-shell-file-name shell-executable)
-	      (setq shell-file-name "bash")
-	      (setq explicit-bash.exe-args '("--login" "-i"))
- 	      (setenv "SHELL" shell-file-name)
-	      (add-hook 'comint-output-filter-functions 'comint-strip-ctrl-m nil t))))
-      (setq w32-quote-process-args ?\")
-      (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)))
+;;(if (string= system-type "windows-nt")
+;;    (progn
+;;      (let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
+;;	(if (file-executable-p shell-executable)
+;;	    (progn
+;;	      (setq explicit-shell-file-name shell-executable)
+;;	      (setq shell-file-name "bash")
+;;	      (setq explicit-bash.exe-args '("--login" "-i"))
+;;	      ;(setq explicit-bash.exe-args '("--login"))	      
+;; 	      (setenv "SHELL" shell-file-name)
+;;	      (add-hook 'comint-output-filter-functions 'comint-strip-ctrl-m nil t))))
+;;      (setq w32-quote-process-args ?\")
+;;      (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  MAN and INFO
@@ -920,8 +990,8 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;;;; [HOME] and [END]
 
-;;; (global-set-key [home] 'beginning-of-buffer)
-;;; (global-set-key [end] 'end-of-buffer)
+(global-set-key [home] 'beginning-of-buffer)
+(global-set-key [end] 'end-of-buffer)
 
 
 ;;;; [UP], [DOWN], [PgUp], [PgDwn]
@@ -957,6 +1027,9 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 
 ;;;; [DELETE] and [BACKSPACE]
+
+;;; Backspace a char (Note: F1 is help key)
+(global-set-key [(control h)] 'delete-backward-char)
 
 ;;; Delete region w/o adding to kill ring
 (global-set-key [(control delete)] 'acs-delete-region-or-backward-kill-word)
@@ -1017,7 +1090,7 @@ with one containing the contents of the directory.  Otherwise, invoke
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
+   '(vterm-toggle vterm x86-lookup lsp-ui web-mode go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
 
 
 (custom-set-faces
