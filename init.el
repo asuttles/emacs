@@ -65,7 +65,7 @@
 ;;(ielm)
 
 ;;; Frame Transparency
-(set-frame-parameter (selected-frame) 'alpha '(80 50))
+(set-frame-parameter (selected-frame) 'alpha '(85 75))
 
 ;;; Company Mode
 ;; (eval-after-load "company"
@@ -81,6 +81,21 @@
 (setq backup-directory-alist (quote ((".*" . "~/.backups"))))
 
 (setq tab-width 4)
+
+
+;;;; --------------------------------------------------------------------------
+;;;;				Verse of the Day
+;;;; --------------------------------------------------------------------------
+
+;;(use-package votd
+;;  :config
+;;  (setq initial-scratch-message
+;;	(concat ";;; *scratch* ;;;\n\n"
+;;		(string-join
+;;		 (mapcar (lambda (line) (concat ";;; " line))
+;;			 (split-string (votd-get-verse) "\n"))
+;;		 "\n")
+;;		"\n;;;\n")))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			      REMOTE FILE EDITING
@@ -308,6 +323,25 @@
 (if (string= system-type "windows-nt") 
     (acs-safe-customization-load "printing.el"))
 
+;;; ----------------------------------------------------------------------------
+;;;				      EWW
+;;; ----------------------------------------------------------------------------
+
+;;; Scroll up by half-pages in EWW-mode
+(defun acs-half-page-scroll-up ()
+  (interactive)
+  (progn
+    (move-to-window-line nil)
+    (recenter-top-bottom 1)))
+
+;;; Define a function to load when eww-mode is invoked
+(add-hook 'eww-mode-hook
+          (lambda ()
+	    (define-key eww-mode-map [? ] #'acs-half-page-scroll-up)
+            (visual-line-mode)))
+
+
+
 ;;;; --------------------------------------------------------------------------
 ;;;;				    ORG MODE
 ;;;; --------------------------------------------------------------------------
@@ -315,6 +349,9 @@
 ;;; Locate LATEST org-mode elisp files
 ;;;(setq load-path (cons "~/org/org-7.8.10/lisp" load-path))
 ;;;(require 'org)
+
+;; Startup in Overview instead of Expanded
+(setq org-startup-folded t)
 
 ;;; Turn on Company Mode in IELM Buffers
 (add-hook 'ielm-mode-hook 'company-mode)
@@ -406,6 +443,16 @@
     (re-search-backward "^\\* Tasks" nil t)
     (org-sort-entries t ?p)
     (org-sort-entries t ?o)))
+
+;;; Open Org Links in eww or default browser
+(defun acs-org-open-at-point (&optional arg)
+  (interactive "P")
+  (if (not arg)
+      (org-open-at-point)
+      (let ((browse-url-browser-function #'eww-browse-url))
+        (org-open-at-point))))
+
+(define-key org-mode-map (kbd "C-c C-o") #'acs-org-open-at-point)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  TREE-SITTER
@@ -601,7 +648,6 @@ with one containing the contents of the directory.  Otherwise, invoke
   (setq company-idle-delay 0.2
 	company-minimum-prefix-length 2))
 
-
 ;;;(if (string= system-type "windows-nt") 
 ;;;    ;;(setq python-shell-interpreter "/mingw64/bin/python3"
 ;;;    (setq python-shell-interpreter "python3"
@@ -710,7 +756,7 @@ with one containing the contents of the directory.  Otherwise, invoke
 
 ;; Define CCL as inferior LISP
 (if (string= system-type "windows-nt") 
-    (setq inferior-lisp-program "~/install/ccl/wx86cl64.exe"))
+    (setq inferior-lisp-program "~/install/ccl/wx86cl64.exe --load ~/.ccl/ccl-init.lisp"))
 
 (load "C:/Users/asuttles/quicklisp/slime-helper.el")
 
@@ -734,53 +780,80 @@ with one containing the contents of the directory.  Otherwise, invoke
 (advice-add 'hyperspec-lookup :around #'hyperspec-lookup--hyperspec-lookup-w3m)
 
 ;; start slime automatically when we open a lisp file
-;;(defun prelude-start-slime ()
-;;  (unless (slime-connected-p)
-;;    (save-excursion (slime))))
+(defun prelude-start-slime ()
+ (unless (slime-connected-p)
+   (save-excursion (slime))))
 
-;;; (add-hook 'lisp-mode-hook (lambda () (slime-mode t)))
-;;; (add-hook 'inferior-lisp-mode-hook (lambda () (inferior-slime-mode t)))
-;;(add-hook 'slime-mode-hook 'prelude-start-slime)
+(add-hook 'lisp-mode-hook (lambda () (slime-mode t)))
+(add-hook 'inferior-lisp-mode-hook (lambda () (inferior-slime-mode t)))
+(add-hook 'slime-mode-hook 'prelude-start-slime)
 
 ;;; LISP documentation
 (acs-safe-customization-load "cltl2.el")
 ;;(setq cltl2-root-url "c:/msys64/home/asuttles/doc/lisp/cltl")
 
+;;; Look up CLHS in Info.
+(require 'info-look)
+
+  
 ;;; Keymap
-;;(defun my-slime-mode-hook ()
-;;  "define keys for my functions to slime mode"
-;;  (interactive)
-;;  (define-key slime-mode-map (kbd "C-c C-d l") 'cltl2-lookup))
+(defun my-slime-mode-hook ()
+ "define keys for my functions to slime mode"
+ (interactive)
+ (define-key slime-mode-map (kbd "C-c C-d l") 'cltl2-lookup)
+ (define-key slime-mode-map (kbd "C-c h") 'info-lookup-symbol))
 
-;;(add-hook 'slime-mode-hook 'my-slime-mode-hook)
 
+(add-hook 'slime-mode-hook 'my-slime-mode-hook)
+
+;;; Open slime in 'other' window
+(setq display-buffer-alist
+      '(("\\*slime-repl\\*"
+         (display-buffer-in-other-window)
+         (reusable-frames . t))))
 
 ;;; ---------------
 ;;;       SML
 ;;; ---------------
 
-(autoload 'sml-mode "sml-mode" "Major mode for editing SML." t)
-(autoload 'run-sml "sml-proc" "Run an inferior SML process." t)
-
-(add-to-list 'auto-mode-alist '("\\.\\(sml\\|sig\\)\\'" . sml-mode))
-
-(setq sml-program-name "poly")
-(setq sml-default-arg "-i")
+;;;(autoload 'sml-mode "sml-mode" "Major mode for editing SML." t)
+;;;(autoload 'run-sml "sml-proc" "Run an inferior SML process." t)
+;;;
+;;;(add-to-list 'auto-mode-alist '("\\.\\(sml\\|sig\\)\\'" . sml-mode))
+;;;
+;;;(setq sml-program-name "poly")
+;;;(setq sml-default-arg "-i")
 
 ;;; ---------------
 ;;;     SCHEME
 ;;; ---------------
 
-;;(require 'gambit)
+;;;(require 'gambit)
 
-(autoload 'gambit-inferior-mode "gambit" "Hook Gambit mode into cmuscheme.")
-(autoload 'gambit-mode "gambit" "Hook Gambit mode into scheme.")
-(add-hook 'inferior-scheme-mode-hook (function gambit-inferior-mode))
-(add-hook 'scheme-mode-hook (function gambit-mode))
+;;; Gambit Scheme
+;;;(autoload 'gambit-inferior-mode "gambit" "Hook Gambit mode into cmuscheme.")
+;;;(autoload 'gambit-mode "gambit" "Hook Gambit mode into scheme.")
+;;;(add-hook 'inferior-scheme-mode-hook (function gambit-inferior-mode))
+;;;(add-hook 'scheme-mode-hook (function gambit-mode))
+;;;
+;;;(add-to-list 'auto-mode-alist '("\\.scm$" . scheme-mode))
+;;;(setq scheme-program-name "gsi -:d-")
 
-(add-to-list 'auto-mode-alist '("\\.scm$" . scheme-mode))
-(setq scheme-program-name "gsi -:d-")
+;;; Chicken Scheme
+;;;(setq scheme-program-name "csi -:c")
+;;;;;(autoload geiser-chicken "chicken")
+;;;(setq geiser-active-implementations '(chicken))
+;;;
 
+;; GNU Guile and Geiser
+(setq scheme-program-name "guile")
+(setq geiser-active-implementations '(guile))
+(require 'geiser-guile)
+
+;; Scheme Language Server
+;;(require 'lsp-scheme)
+;;(add-hook 'scheme-mode-hook #'lsp-scheme)
+;;(setq lsp-scheme-implementation "guile")
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				      LUA
@@ -1089,8 +1162,12 @@ with one containing the contents of the directory.  Otherwise, invoke
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(ignored-local-variable-values
+   '((Base . 10)
+     (Package . HUNCHENTOOT)
+     (Syntax . COMMON-LISP)))
  '(package-selected-packages
-   '(vterm-toggle vterm x86-lookup lsp-ui web-mode go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
+   '(votd sicp ac-geiser geiser-guile scheme-complete geiser geiser-chicken vterm-toggle vterm x86-lookup lsp-ui web-mode go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
 
 
 (custom-set-faces
