@@ -10,105 +10,117 @@
 (if (equal system-type 'windows-nt)
     (setq load-path (cons "~/.emacs.d/site-lisp" load-path)))
 
+
 ;;;; --------------------------------------------------------------------------
-;;;;				     MELPA
+;;;;				      GPG
 ;;;; --------------------------------------------------------------------------
 
+(if (equal system-type 'windows-nt)
+    (setq package-gnupghome-dir (expand-file-name "~/.gnupg")))
+
+;;;; --------------------------------------------------------------------------
+;;;;				    PACKAGES
+;;;; --------------------------------------------------------------------------
+
+;;; Package Management
 (require 'package)
 
-(add-to-list 'package-archives
-	     '("melpa" . "https://melpa.org/packages/")
-	     t)
-(add-to-list 'package-archives
-	     '("org" . "https://orgmode.org/elpa/")
-	     t)
+(setq package-archives
+      '(("melpa" . "https://melpa.org/packages/")))
 
-;; Explicitly set gpg dir location
-(setq package-gnupghome-dir "/home/asuttles/.emacs.d/elpa/gnupg")
+(unless package-archive-contents
+  (package-refresh-contents))
 
-;;(add-to-list 'package-archives
-;;             '("melpa-stable" . "https://stable.melpa.org/packages/")
-;;	     t)
+;;; Install use-package - lazy load packages
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
 
-;; (package-refresh-contents)
-;; (package-initialize)
+(require 'use-package)
+(setq use-package-always-ensure t)
 
 ;;;; --------------------------------------------------------------------------
-;;;;				    GENERAL
+;;;;			  MY CUSTOMIZATION
 ;;;; --------------------------------------------------------------------------
-
-;;; Load Path
 
 ;;; Customize EMACS with aditional personal customizations
 (setq my-customizations-directory "~/.emacs.d/my-lisp")
 
 ;;; Safely load ELISP extensions
 (defun acs-safe-customization-load (filename)
-  "Check to see if 'filename' exists before trying to load it."
-  (let ((customization-file (concat my-customizations-directory 
-				    "/" filename))) 
+  "Safely load a customization file from `my-customizations-directory`."
+  (let ((customization-file (file-name-concat my-customizations-directory 
+					      filename)))
     (if (file-readable-p customization-file)
 	(load-file customization-file)
-      (message (concat "Cannot Load: " customization-file)))))
-      
+      (message "Cannot Load: " customization-file))))
+
+;;;; --------------------------------------------------------------------------
+;;;;			   SERVER and REPL
+;;;; --------------------------------------------------------------------------
 
 ;;; Start Emacs server 
 ;;(server-start)
 
-;;; Allow text files to define local variables
-(setq enable-local-variables t)
-
-;;; Stop emacs from beeping
-(setq visible-bell t)
-
 ;;; Start IELM - Inferior Emacs Lisp Mode (REPL)
 ;;(ielm)
-
-;;; Frame Transparency
-(set-frame-parameter (selected-frame) 'alpha '(85 75))
-
-;;; Company Mode
-;; (eval-after-load "company"
-;;   '(add-to-list 'company-backends 'company-anaconda))
-(require 'company)
-;;;(setq company-global-modes '(c-mode go-mode))
-;;;(add-hook 'after-init-hook 'global-company-mode)
-
-;;; Global snippet mode
-;;(yas-global-mode 1)
-
-;;; Define where backups are stored
-(setq backup-directory-alist (quote ((".*" . "~/.backups"))))
-
-(setq tab-width 4)
-
+;;; Turn on Company Mode in IELM Buffers
+;;;(add-hook 'ielm-mode-hook 'company-mode)
 
 ;;;; --------------------------------------------------------------------------
-;;;;				Verse of the Day
+;;;;                                UNICODE
 ;;;; --------------------------------------------------------------------------
 
-;;(use-package votd
-;;  :config
-;;  (setq initial-scratch-message
-;;	(concat ";;; *scratch* ;;;\n\n"
-;;		(string-join
-;;		 (mapcar (lambda (line) (concat ";;; " line))
-;;			 (split-string (votd-get-verse) "\n"))
-;;		 "\n")
-;;		"\n;;;\n")))
+;;; Default Font
+(set-face-attribute 'default nil :font "Cascadia Mono-11")
+
+;;; Configure Unicode Icon Support
+(use-package all-the-icons
+  :ensure t
+  :config
+  (when (display-graphic-p)
+    ;; Set Cascadia Mono as the primary font for unicode glyphs
+    (set-fontset-font t 'unicode (font-spec :family "Cascadia Mono") nil 'prepend)
+    ;; Also add all-the-icons font for icon-specific glyphs
+    (set-fontset-font t 'unicode (font-spec :family "all-the-icons") nil 'append)))
 
 ;;;; --------------------------------------------------------------------------
-;;;;			      REMOTE FILE EDITING
+;;;;				     DIRED
 ;;;; --------------------------------------------------------------------------
 
-(require 'tramp)
+;;; Config directory editor
+(use-package dired
+  :ensure nil  ;; built-in, so no install
+  :commands (dired dired-jump)
+  :bind (("C-x C-j" . dired-jump))
+  :config
+  ;; Kill old dired buffers when opening new ones
+  (setq dired-kill-when-opening-new-dired-buffer t)
 
-(if (equal system-type 'windows-nt)
-    (setenv "PATH"
-	    (concat "c:/Program Files (x86)/PuTTY;" (getenv "PATH"))))
+  ;; Define function to open files with default Windows program
+  (defun acs-dired-do-operate-on-file ()
+    "Open the current file with its default Windows program."
+    (interactive)
+    (w32-shell-execute "open"
+                       (convert-standard-filename (dired-get-filename))))
 
-(setq tramp-default-method "plink")
-;;(set-default 'tramp-auto-save-directory "c:/Users/asuttles/AppData/Local/Temp")
+  ;; You can bind your custom function here, e.g.:
+  (define-key dired-mode-map (kbd "C-c o") #'acs-dired-do-operate-on-file))
+
+;;; Add extra dired functionality
+(use-package dired-x
+  :ensure nil
+  :after dired
+  :config
+  (setq dired-omit-files (concat dired-omit-files "\\|^\\.DS_Store$"))
+  ;; Uncomment to enable omit mode by default
+  ;; (add-hook 'dired-mode-hook #'dired-omit-mode)
+  )
+
+;;; Show git status in dired
+(use-package diff-hl
+  :ensure t
+  :hook ((dired-mode . diff-hl-dired-mode)
+         (after-init . global-diff-hl-mode)))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FRAME PROPERTIES
@@ -118,29 +130,16 @@
 (tool-bar-mode -1)
 (menu-bar-mode -1)
 
-(if (display-graphic-p) ; No scroll-bars in Console
+;;; Frame Transparency
+(set-frame-parameter (selected-frame) 'alpha '(85 75))
+(add-to-list 'default-frame-alist '(alpha . (85 . 75)))
+
+;;; Enable scroll-bars in Console only
+(if (display-graphic-p) 
     (scroll-bar-mode -1))
 
 ;;; Stop cursor from blinking
 (blink-cursor-mode 0)
-
-;;; Show matching parenthesis
-(show-paren-mode t)
-(setq show-paren-style 'parenthesis)
-(setq blink-matching-paren t)
-
-;;; Search highlighting
-(setq search-highlight t)
-(setq query-replace-highlight t)
-
-;;; Use faces to show meaning in text
-;; (if (not (equal (global-font-lock-mode) t))
-;;     (global-font-lock-mode t))
-(font-lock-mode 1)
-(setq font-lock-maximum-decoration t) ; Max decoration
-
-;;; Highlight active region in current buffer
-(transient-mark-mode 1)
 
 ;;; Mouse cursor avoids point
 (mouse-avoidance-mode 'exile) ;cat-and-mouse) 
@@ -148,28 +147,26 @@
 ;;; Set mouse color
 (set-mouse-color "black")
 
-;;; Frame Title (%b = buffer name, %f = filename)
-(setq frame-title-format '("Andrew Suttles' Emacs: %b (%m) <" 
-			   default-directory ">"))
+;;; Frame Title
+(setq frame-title-format
+      '(:eval (if (buffer-file-name)
+                  (abbreviate-file-name (buffer-file-name))
+                "%b")))
 
 ;;; Size the Main Frame and Position is ROUGHLY in center of screen
 (set-frame-width (selected-frame) 100)
-;;;(set-frame-height (selected-frame) 50)
-;;;(set-frame-position (selected-frame) 80 40)
 
-;; Set dedicated frames
-(setq same-window-buffer-names '("*inferior-lisp*"
-				 "*scheme*"
-				 "*Apropos*"
-				 "*Help*"
-				 ;;"*Completions*"
-				 ))
-
-;; (setq special-display-buffer-names '(;"*shell*"
-;; 				     "*Shell Command Output*"
-;; 				     "*info*"
-;; 				     "*terminal*"))
-
+;;; DELETE THIS
+;;; (or modernize using:
+;;;(add-to-list 'display-buffer-alist
+;;;             '("^\\*Help\\*" . (display-buffer-same-window)))
+;;; Set dedicated frames
+;;;(setq same-window-buffer-names '("*inferior-lisp*"
+;;;				 "*scheme*"
+;;;				 "*Apropos*"
+;;;				 "*Help*"
+;;;				 ;;"*Completions*"
+;;;				 ))
 
 ;;; Custom Configurations
 (acs-safe-customization-load "frame-properties.el")
@@ -186,6 +183,14 @@
 (acs-safe-customization-load "window-properties.el")
 
 ;;;; --------------------------------------------------------------------------
+;;;;                        CUSTOMIZED COMMAND MENUS
+;;;; --------------------------------------------------------------------------
+
+;;; UI toolkit for interactive command menus
+(use-package transient ; Needed for magit
+  :ensure t)
+
+;;;; --------------------------------------------------------------------------
 ;;;;				    MODELINE
 ;;;; --------------------------------------------------------------------------
 
@@ -194,81 +199,23 @@
 (column-number-mode 1)
 
 ;; Format time/date in mode line
-;;  -- ignore `display-time-day-and-date' and
-;;     `display-time-24hr-format' when this is set
-(setq display-time-format "   %a %b %e %I:%M%p (%j)")
-;;; Show time/date in mode line
-;;(setq display-time-day-and-date t)	; Show time AND date
-
-;;; (setq display-time-interval 30)	; 30 Second Time Update Interval
-;;(setq display-time-24hr-format nil)	; 12 hour format
-(display-time)				; Display the Day, Date, Time, Load
+(setq display-time-format "   %a %b %e %I:%M %p")
+(setq display-time-interval 30)
+(display-time-mode 1)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FILE MANAGEMENT
 ;;;; --------------------------------------------------------------------------
 
-;;; *** COMPRESSIOIN/ARCHIVES ***
-;;; Read and write compressed and archived files
-;;;  of the form .gq, .z, .tgz, .tar
-(require 'jka-compr)
-
-;;; FFAP
 ;;; Bind find-file-at-point default keybindings
-;;;
-;;; from ffap.el...
-;;; (ffap-bindings)                      ; do default key bindings
-;;;
-;;; ffap-bindings makes the following global key bindings:
-;;;
-;;; C-x C-f       find-file-at-point (abbreviated as ffap)
-;;; C-x 4 f       ffap-other-window
-;;; C-x 5 f       ffap-other-frame
-;;; S-mouse-3     ffap-at-mouse
-;;; C-S-mouse-3   ffap-menu
 (ffap-bindings)
-(setq ffap-require-prefix t) ; require the prefix arg
-;;; (setq ffap-url-regexp nil)   ; disable URL features
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				  TEXT EDITING
-;;;; --------------------------------------------------------------------------
-
-;;; Set the page delimiter
-(setq page-delimiter "^")
-
-;;; Yank text at point instead of at click.
-(setq mouse-yank-at-point t)
-
-;;; Allow user to narrow to region in buffer
-(put 'narrow-to-region 'disabled nil)
-
-;;; Custom Configurations
-(acs-safe-customization-load "text-editing.el")
-
-;;;; --------------------------------------------------------------------------
-;;;;				   TEXT TOOLS
-;;;; --------------------------------------------------------------------------
-
-;;; Ediff customizations
-;;;
-;;; (From Bill Clementson's Blog)
-(defconst ediff-ignore-similar-regions t)
-(defconst ediff-use-last-dir t)
-(defconst ediff-diff-options " -b ")
-
-;;; Grep equivalent on Windows - Need to update for MSYS
-;;; (setq grep-command "c:/cygwin/bin/grep -n -a -e ")
-;;; (setq grep-command "findstr /n /s ")
-
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			       BUFFER NAVIGATION
 ;;;; --------------------------------------------------------------------------
 
 ;;; Allow the use of the mouse wheel
-(if (display-graphic-p) ; No mouse wheel in console
+(if (display-graphic-p)
     (mwheel-install))
 
 ;;; Preserve screen position when scrolling...
@@ -290,8 +237,9 @@
 ;;; Uniquify buffers (avoid name clashes)
 (require 'uniquify)
 (setq uniquify-buffer-name-style 'forward)
+(setq uniquify-seperator "/")
+(setq uniquify-ignore-buffers-re "^\\*")    ;; Don’t rename special buffers
 (setq uniquify-after-kill-buffer-p nil)
-(setq uniquify-min-dir-content 2)
 
 (acs-safe-customization-load "buffer-management.el")
 
@@ -299,29 +247,57 @@
 ;;;;				   MINIBUFFER
 ;;;; --------------------------------------------------------------------------
 
-;;; Completions in minibuffer 
-;;; (define-key minibuffer-local-map [tab] 'comint-dynamic-complete)
+;;; Use vertico for minibuffer selection
+(use-package vertico
+  :init
+  (vertico-mode 1))
 
-;;; Autocomplete buffer names after pressing c-x b
-;; Obsolete
-;;(require 'iswitchb)
-;; (iswitchb-mode 1)
+;;; Adds helpful annotations to minibuffer candidates
+(use-package marginalia
+  :after vertico
+  :init
+  (marginalia-mode 1))
 
-;;; Define buffer completions to ignore
-;;; (setq iswitchb-buffer-ignore '("" ""))
+;;; Match parts of words in any order
+;;;(use-package orderless
+;;;  :init
+;;;  (setq completion-styles '(orderless)
+;;;        completion-category-defaults nil))
 
-;;; Maximum Mini Window Height
-(setq max-mini-window-height 10)
-
-;;; Stop eglot from spamming minibuffer
-(setq eglot-report-progress nil)
+;;; To Add Later:
+;;; consult: drop-in replacements for switch-to-buffer, find-file, etc.
+;;; embark: context-sensitive actions (e.g., open file, run command, etc.)
 
 ;;;; --------------------------------------------------------------------------
-;;;;				    PRINTING
+;;;;				  MAN and INFO
 ;;;; --------------------------------------------------------------------------
 
+;; Set the INFO path
+;; Cannot change env var in MS Windows
+;;(setq Info-default-directory-list 
+;;      (append (list "c:/acs/info") Info-default-directory-list))
 (if (string= system-type "windows-nt") 
-    (acs-safe-customization-load "printing.el"))
+    (setq Info-default-directory-list (list "c:/acs/info")))
+
+;;; Man pages open in "this" frame, "this" window
+(setq Man-notify-method 'pushy)
+
+(defun my-info-mode-hook ()
+  (local-set-key "j" 'next-line)
+  (local-set-key "k" 'previous-line)
+  (local-set-key "l" 'recenter-top-bottom)
+  (local-set-key ";" 'Info-history-back))
+
+(add-hook 'Info-mode-hook 'my-info-mode-hook)
+
+;;;; --------------------------------------------------------------------------
+;;;;				 IMAGE VIEWING
+;;;; --------------------------------------------------------------------------
+
+;;; Enable image viewing
+(auto-image-file-mode t)
+;;; (setq image-file-name-extensions 
+;;;      (append image-file-name-extensions (list "eps" "jpg" "png" )))
 
 ;;; ----------------------------------------------------------------------------
 ;;;				      EWW
@@ -340,101 +316,136 @@
 	    (define-key eww-mode-map [? ] #'acs-half-page-scroll-up)
             (visual-line-mode)))
 
+;;;; --------------------------------------------------------------------------
+;;;;				 AUTOCOMPLETION
+;;;; --------------------------------------------------------------------------
 
+;;; Use global company-mode
+(use-package company
+  :ensure t
+  :config
+  (setq company-idle-delay 0.2
+	company-minimum-prefix-length 2)
+  (define-key company-active-map (kbd "C-n") 'company-select-next)
+  (define-key company-active-map (kbd "C-p") 'company-select-previous)
+  (define-key company-active-map (kbd "M-.") 'company-show-location)
+  :hook
+  ((slime-mode . company-mode)
+   (slime-repl-mode . company-mode)))
+
+
+;;;; --------------------------------------------------------------------------
+;;;;			      EDITING
+;;;; --------------------------------------------------------------------------
+
+;;; Visual Editing and Behavior
+(setq visible-bell t)           ;; Flash instead of beep
+(setq enable-local-variables t) ;; Allow file-local variables
+(setq tab-width 4)              ;; Set default tab width
+
+;;; Define where backups are stored
+(setq backup-directory-alist (quote ((".*" . "~/.backups"))))
+
+;;; Track file locations
+(save-place-mode 1)
+
+;;; Show matching parenthesis
+(show-paren-mode t)
+(setq show-paren-style 'parenthesis)
+(setq blink-matching-paren t)
+
+;;; Search highlighting
+(setq search-highlight t)
+(setq query-replace-highlight t)
+
+;;; Use Maximum decoration to show meaning in text
+(setq font-lock-maximum-decoration t)
+
+;;; Highlight active region in current buffer
+(transient-mark-mode 1)
+
+;;; Set the page delimiter
+(setq page-delimiter "^")
+
+;;; Yank text at point instead of at click.
+(setq mouse-yank-at-point t)
+
+;;; Allow user to narrow to region in buffer
+(put 'narrow-to-region 'disabled nil)
+
+;;; Custom Configurations
+(acs-safe-customization-load "text-editing.el")
+
+;;; Ignore whitespace when diffing
+(setq ediff-diff-options " -b ")
+
+;;; Ediff control panel in same frame
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+
+;;; Split horizontally instead of vertically
+;;;(setq ediff-split-window-function 'split-window-horizontally)
+
+
+;;;; --------------------------------------------------------------------------
+;;;;                             VERSION CONTROL
+;;;; --------------------------------------------------------------------------
+
+;;; Git Management
+(use-package magit
+ :ensure t
+ :after transient)
+
+;;;; --------------------------------------------------------------------------
+;;;;				    PRINTING
+;;;; --------------------------------------------------------------------------
+
+(if (string= system-type "windows-nt") 
+    (acs-safe-customization-load "printing.el"))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    ORG MODE
 ;;;; --------------------------------------------------------------------------
 
-;;; Locate LATEST org-mode elisp files
-;;;(setq load-path (cons "~/org/org-7.8.10/lisp" load-path))
-;;;(require 'org)
+;;; Enable and configure the org-mode package
+(use-package org
+  :mode ("\\.org\\'" . org-mode)
+  :bind (("\C-cl" . org-store-link)
+         ("\C-ca" . org-agenda)
+         ("\C-cb" . org-switchb))
+  :hook ((org-mode . acs-enable-org-keybindings))
+  :config
+  ;; Startup in overview instead of expanded
+  (setq org-startup-folded t)
 
-;; Startup in Overview instead of Expanded
-(setq org-startup-folded t)
+  ;; Define task states
+  (setq org-todo-keywords
+        '((sequence "TODO" "WORK" "|" "DONE")))
 
-;;; Turn on Company Mode in IELM Buffers
-(add-hook 'ielm-mode-hook 'company-mode)
+  ;; Task states color coding
+  (setq org-todo-keyword-faces
+        '(("TODO" :foreground "red" :weight bold)
+          ("WORK" :foreground "yellow" :weight bold)
+          ("DONE" :foreground "forest green" :weight normal)
+          ("CANCELED" :foreground "gray" :weight normal)))
 
-;;; Configure org-mode
-(add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
-(global-set-key "\C-cl" 'org-store-link)
-(global-set-key "\C-ca" 'org-agenda)
-;;;(global-set-key "\C-cb" 'org-iswitchb)
-; (setq-default major-mode 'org-mode)
+  ;; LaTeX preview settings
+  (setq org-format-latex-options
+        (plist-put (copy-sequence org-format-latex-options) :scale 2.5)
+        org-startup-with-latex-preview t))
 
-;; flyspell mode for spell checking everywhere
-;;(add-hook 'org-mode-hook 'turn-on-flyspell 'append)
+;;; Customized org support functions...
+(defun acs-enable-org-keybindings ()
+  "Add custom keybindings for org-mode."
+  (define-key org-mode-map (kbd "C-c C-o") #'acs-org-open-at-point))
 
-;; Enable abbrev-mode
-(add-hook 'org-mode-hook (lambda () (abbrev-mode 1)))
+(defun acs-org-open-at-point (&optional arg)
+  "Open org links using `eww` if prefix arg is provided."
+  (interactive "P")
+  (if (not arg)
+      (org-open-at-point)
+    (let ((browse-url-browser-function #'eww-browse-url))
+      (org-open-at-point))))
 
-;; Define Task States
-;; Set state with c-c t
-(setq org-todo-keywords
-      '((sequence "TODO" "WORK" "|" "DONE")))
-;;;	(sequence "OPEN(o)" "CLOSED(c)")))
-
-;; Task States Color Code
-(setq org-todo-keyword-faces 
-      (quote (("TODO" :foreground "red" :weight bold)
-              ("WORK" :foreground "yellow" :weight bold)
-              ("DONE" :foreground "forest green" :weight normal)
-              ("CANCELED" :foreground "gray" :weight normal))))
-
-;; Commonly Used Tag List
-;; (setq org-tag-alist '(("PLF_PROJECT" . ?P) ("Home" . ?H)))
-
-;; Log completed time for task
-;;;(setq org-log-done 'time)
-
-;; Agenda files
-;; Use c-c [ or c-c ] to add/remove agenda files
-
-;;; Turn off babel execution notification
-;; (setq org-confirm-babel-evaluate nil)
-
-;;; Org Babel Languages
-;;; (setq org-babel-load-languages '((scheme . t) (emacs-lisp . t)))
-;;;(org-babel-do-load-languages
-;;;      'org-babel-load-languages
-;;;      '((emacs-lisp . t)
-;;;        (scheme . t)
-;;;	(sh . t)))
-      
-
-;;; Edit BABEL source in 'current' window
-;;;(setq org-src-window-setup 'current-window)
-
-;;; Set `org-babel-scheme-cmd'
-;;;(setq org-babel-scheme-cmd "gsi -:d-")
-
-;;; Set up Easy Templates
-;;;(eval-after-load 'org
-;;;		 '(progn
-;;;		   (add-to-list 'org-structure-template-alist
-;;;				'("S" "#+begin_src scheme\n?\n#+end_src" ""))))
-
-;;; Customize org-mode for export
-;;;(setq org-footnote-auto-label 'plain)	    ;Plain footnotes
-;;;(setq org-export-html-postamble nil)	    ;No postamble in HTML
-;;;
-;;;
-;;;;;; Add diary entries
-;;;(setq org-agenda-include-diary t)
-
-
-(require 'org-bullets)
-(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
-
-
-(setq org-agenda-files (list "~/org/ft.org"
-			     "~/org/ang.org"
-			     "~/org/car.org"
-			     "~/org/shooting.org"
-			     "~/org/home.org"))
-
-;;; Sort Org Subtasks Under First-Level Header '* Tasks'
 (defun acs-sort-priorities ()
   "Sort org Tasks by status, then priority"
   (interactive)
@@ -444,19 +455,18 @@
     (org-sort-entries t ?p)
     (org-sort-entries t ?o)))
 
-;;; Open Org Links in eww or default browser
-(defun acs-org-open-at-point (&optional arg)
-  (interactive "P")
-  (if (not arg)
-      (org-open-at-point)
-      (let ((browse-url-browser-function #'eww-browse-url))
-        (org-open-at-point))))
-
-(define-key org-mode-map (kbd "C-c C-o") #'acs-org-open-at-point)
+;;; org-bullets for pretty headlines
+(use-package org-bullets
+  :ensure t
+  :hook (org-mode . org-bullets-mode))
 
 ;;;; --------------------------------------------------------------------------
-;;;;				  TREE-SITTER
+;;;;				  PROGRAMMING
 ;;;; --------------------------------------------------------------------------
+
+;;;; ----------------
+;;;;   TREE-SITTER
+;;;; ----------------
 
 ;;; Use treesit-install-language-grammar to install grammar
 (setq treesit-language-source-alist
@@ -468,152 +478,6 @@
      (json "https://github.com/tree-sitter/tree-sitter-json")
      (make "https://github.com/alemuller/tree-sitter-make")
      (markdown "https://github.com/ikatyang/tree-sitter-markdown")))
-
-;;;; --------------------------------------------------------------------------
-;;;;				Web Programming
-;;;; --------------------------------------------------------------------------
-(require 'web-mode)
-(add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
-;;(add-to-list 'auto-mode-alist '("\\.css?\\'" . css-mode))
-(add-to-list 'auto-mode-alist '("\\.css?\\'" . css-ts-mode))
-;;(add-to-list 'auto-mode-alist '("\\.js?\\'" . web-mode))
-(add-to-list 'auto-mode-alist '("\\.js?\\'" . js-ts-mode))
-(setq web-mode-enable-current-element-highlight t)
-;;;(setq web-mode-enable-current-column-highlight t)
-
-(with-eval-after-load 'web-mode
-  (define-key web-mode-map (kbd "C-c C-v") 'browse-url-of-buffer))
-
-;;; Language Server for Javascript (and any other language)
-(use-package lsp-mode
-  :hook ((js-mode) . lsp-deferred)
-  :commands lsp)
-
-(use-package lsp-ui
-  :commands lsp-ui-mode)
-
-;;;; --------------------------------------------------------------------------
-;;;;				    ORG2BLOG
-;;;; --------------------------------------------------------------------------
-
-;; ;;; RPC for calls to WordPress
-;; ;;;(require 'xml-rpc)
-
-;; ;;; Require org2blog
-;; (setq load-path (cons "c:/emacs/site-lisp/org2blog-0.5/" load-path))
-;; (require 'org2blog-autoloads)
-
-;; ;;; Allow source code formatting in html
-;; (setq org2blog/wp-use-sourcecode-shortcode 't)
-;; (autoload 'htmlize-buffer "~/org/org-7.8.10/contrib/lisp/htmlize.el")
-
-;; ;;; Fix-up html exports before org2blog htmlize
-;; (add-hook 'org-export-html-final-hook
-;; 	  (lambda ()
-;; 	    (while (re-search-forward "<pre.*>" nil t)
-;; 	      (replace-match
-;; 	       "<pre style=\"font-size:10pt\"><span style=\"font-family:monospace\">"
-;; 	       t nil))
-;; 	    (while (re-search-forward "</pre>" nil t)
-;; 	      (replace-match
-;; 	       "</pre></span>" nil t))))
-
-;; ;;; Set-up org2blog
-;; (setq org2blog/wp-blog-alist
-;;       '(
-;; 	("i686os"
-;;          :url "https://i686os.wordpress.com/xmlrpc.php"
-;; 	 :username "suttlesa"
-;; 	 :wp-code t
-;; 	 :tags-as-categories nil)
-;; 	("abrahamsseed"
-;;          :url "https://abrahamsseed.wordpress.com/xmlrpc.php"
-;;          :username "suttlesa"
-;;          :tags-as-categories nil)))
-
-;; ;; #+STARTUP: fninline fnplain 
-;; ;; Set org-footnote-section to the Vocabulary Section
-
-;;;; --------------------------------------------------------------------------
-;;;;				     DIRED
-;;;; --------------------------------------------------------------------------
-
-(setq ls-lisp-dirs-first t)             ;display dirs first in dired
-
-;;; Limit `dired' to one buffer
-;;;
-;;; Prevents dired from cluttering up the buffer list with directories.
-;;;
-;;; by:
-;;; Francois Bourgneuf <francois.bourgneuf@groupe-mma.fr>
-;;;
-;;; posted at:
-;;; help-gnu-emacs@gnu.org message board
-;;; Wed, 16 Aug 2006
-(defun dired-follow-file ()
-  "In `dired', visit the file or directory on this line.
-If a directory is on the current line, replace the current dired buffer
-with one containing the contents of the directory.  Otherwise, invoke
-`dired-find-file' on the file."  (interactive)
-  (let ((filename (dired-get-file-for-visit)))
-    (if (file-directory-p filename)
-	(find-alternate-file filename)
-      (dired-find-file))))
-
-(defun dired-setup-follow-file ()
-  (substitute-key-definition
-   'dired-file-file 'dired-follow-file dired-mode-map)
-  (substitute-key-definition
-   'dired-advertised-find-file 'dired-follow-file dired-mode-map))
-
-
-;;; Let W32 figure out what to do with files in DIRED
-
-(defun acs-dired-do-operate-on-file ()
-  "Operate on the current dired file, dependent upon file type."
-  (interactive)
-  (w32-shell-execute "open" (convert-standard-filename (dired-get-filename))))
-
-(defun acs-launch-windows-explorer ()
-  (w32-shell-execute "explore" default-directory))
-
-;;; Define shell program to execute on
-;;; particular file extensions in dired...
-;;(setq dired-guess-shell-alist-user
-;;      (list
-;;       (list "\\.java$" "javac")
-;;       (list "\\.class$" "java")
-;;       (list "\\.scm$"   "MzScheme")))
-
-(if (string= system-type "windows-nt") 
-    (add-hook 'dired-load-hook
-	      (function (lambda ()
-			  (load "dired-x")
-			  ;; (define-key dired-mode-map "&"
-			  ;;	'dired-do-shell-command-in-background)
-			  (define-key dired-mode-map "!"
-			    'acs-dired-do-operate-on-file)
-			  (define-key dired-mode-map "#"
-			    'acs-launch-windows-explorer)))))
-;;;; --------------------------------------------------------------------------
-;;;;				  PROGRAMMING
-;;;; --------------------------------------------------------------------------
-
-;;(require 'auto-complete)
-;;(global-auto-complete-mode t)
-
-;; Start/Stop completion
-(setq ac-auto-start nil)
-(global-set-key "\M-/" 'ac-start)
-;;(define-key ac-complete-mode-map "\M-/" 'ac-stop)
-
-;; Use C-n/C-p to select candidates
-;;(define-key ac-complete-mode-map "\C-n" 'ac-next)
-;;(define-key ac-complete-mode-map "\C-p" 'ac-previous)
-
-;; Do What I Mean mode
-(setq ac-dwim t)
-
 
 ;;; ---------------
 ;;;        C
@@ -630,63 +494,6 @@ with one containing the contents of the directory.  Otherwise, invoke
 		     (format "gcc -std=c99 -Wall -g %s -o %s.exe"
 			     filename
 			     (file-name-sans-extension filename)))))))
-;;; ---------------
-;;;     PYTHON
-;;; ---------------
-(use-package python-ts-mode
-  :hook ((python-ts-mode . eglot-ensure)
-	 (python-ts-mode . company-mode))
-  :mode (("\\.py\\'" . python-ts-mode))
-  :config
-  (setq python-indent-offset 4
-	python-shell-interpreter "python3"
-	python-shell-interpreter-args "-i"))
-
-(use-package company
-  :ensure t
-  :config
-  (setq company-idle-delay 0.2
-	company-minimum-prefix-length 2))
-
-;;;(if (string= system-type "windows-nt") 
-;;;    ;;(setq python-shell-interpreter "/mingw64/bin/python3"
-;;;    (setq python-shell-interpreter "python3"
-;;;	  python-shell-interpreter-args "-i"))
-;;;(setq python-shell-completion-native-enable nil) ; Disable readline
-;;;(setq python-indent-offset 4)
-
-;;; Anaconda Mode
-;;;(add-hook 'python-mode-hook 'anaconda-mode)
-
-;;; Flycheck
-;(add-hook 'python-mode-hook 'flycheck-mode)
-
-;;; PEP 8
-;(add-hook 'python-mode-hook 'py-autopep8-enable-on-save)
-
-;;; Send Buffer to Python Shell
-;;(defun acs-python-send ()
-;;  (interactive)
-;;  (python-shell-send-buffer)
-;;  (python-shell-switch-to-shell)
-;;  )
-;;
-;;(eval-after-load "python"
-;;  '(progn
-;;     (define-key python-mode-map (kbd "C-c p") 'acs-python-send)
-;;     (define-key python-mode-map (kbd "C-h f") 'python-eldoc-at-point)
-;;     ))
-
-;;; ---------------
-;;;    RACKET
-;;; ---------------
-
-;;; Add Racket to execution path
-;;;(setenv "PATH"
-;;;	(concat "c:/Program Files/Racket;" (getenv "PATH")))
-;;;
-;;;;; Run Racket.exe in REPL buffer
-;;;(setq racket-racket-program "c:/Program Files/Racket/Racket.exe")
 
 ;;; ---------------
 ;;;      NASM
@@ -739,249 +546,100 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;;   COMMON LISP
 ;;; ---------------
 
-;; Require common lisp extensions to elisp
-;; (require 'cl)
-
 ;; Specify modes for Lisp file extensions
-(setq auto-mode-alist
-      (append '(
-		("\\.emacs$" . emacs-lisp-mode)
-		("\\.lisp$" . lisp-mode)
-		("\\.cl$" . lisp-mode)
-		)auto-mode-alist))
+(add-to-list 'auto-mode-alist '("\\.cl\\'" . lisp-mode))
 
-;; Setup slime load-path and autoloads
-;;(add-to-list 'load-path "~/.emacs.d/elpa/slime-2.23/")
-;;(require 'slime-autoloads)
+;;; Enable slime for code editing and repl
+(use-package slime
+  :ensure t
+  :init
+  ;; CCL on MS Windows
+  (setq inferior-lisp-program
+	(if (eq system-type 'windows-nt)
+            "~/install/ccl/wx86cl64.exe --load ~/.ccl/ccl-init.lisp"
+          "sbcl"))
+  :hook
+  (lisp-mode . (lambda () (unless (slime-connected-p) (slime))))
+  :config
+  (slime-setup '(slime-fancy slime-company))
+  (setq slime-net-coding-system 'utf-8-unix)
+  ;; Windows: show REPL in other window
+  (add-to-list 'display-buffer-alist
+               '("\\*slime-repl\\*"
+		 (display-buffer-reuse-window display-buffer-at-bottom)
+		 (window-height . 0.33))))
 
-;; Define CCL as inferior LISP
-(if (string= system-type "windows-nt") 
-    (setq inferior-lisp-program "~/install/ccl/wx86cl64.exe --load ~/.ccl/ccl-init.lisp"))
+(use-package slime-company
+  :after (slime company)
+  :ensure t
+  :config
+  (setq slime-company-completion 'fuzzy))
 
-(load "C:/Users/asuttles/quicklisp/slime-helper.el")
+(use-package slime-fancy
+  :after slime
+  :ensure nil)
 
-(slime-setup '(slime-fancy slime-company))
+(use-package slime-repl-ansi-color
+  :ensure t
+  :hook (slime-repl-mode . slime-repl-ansi-color-mode))
 
-;;; Slime Completions Map
-(define-key company-active-map (kbd "\C-n") 'company-select-next)
-(define-key company-active-map (kbd "\C-p") 'company-select-previous)
-(define-key company-active-map (kbd "\C-d") 'company-show-doc-buffer)
-(define-key company-active-map (kbd "M-.") 'company-show-location)
+;;; Configure hyperspec lookups
+(require 'hyperspec)
 
-;;; Load slime REPL
-;;; (setq slime-contribs '(slime-repl slime-company))
-
-;;; Custom Lookup Function for Common LISP Hyperspec
-;;; Use eww to lookup functions within emacs
 (defun hyperspec-lookup--hyperspec-lookup-w3m (orig-fun &rest args)
-  (let ((browse-url-browser-function 'eww-browse-url))
-    (apply orig-fun args)))
+ (let ((browse-url-browser-function 'eww-browse-url))
+   (apply orig-fun args)))
 
 (advice-add 'hyperspec-lookup :around #'hyperspec-lookup--hyperspec-lookup-w3m)
 
-;; start slime automatically when we open a lisp file
-(defun prelude-start-slime ()
- (unless (slime-connected-p)
-   (save-excursion (slime))))
+(with-eval-after-load 'slime
+  (define-key slime-mode-map (kbd "C-c C-d h") #'hyperspec-lookup))
 
-(add-hook 'lisp-mode-hook (lambda () (slime-mode t)))
-(add-hook 'inferior-lisp-mode-hook (lambda () (inferior-slime-mode t)))
-(add-hook 'slime-mode-hook 'prelude-start-slime)
+;;; Note:
+;;; Possible packages to add: rainbow-delimiters, paredit, smartparens
+
+
+;;;; NOTE:
+;;;; Delete all of the following old configuration...
+
+;; Define CCL as inferior LISP
+;;(if (string= system-type "windows-nt") 
+;;    (setq inferior-lisp-program "~/install/ccl/wx86cl64.exe --load ~/.ccl/ccl-init.lisp"))
+
+;;;(load "C:/Users/asuttles/quicklisp/slime-helper.el")
+
+;;(slime-setup '(slime-fancy slime-company))
+
+;;(defun my-start-slime-if-needed ()
+;;  "Start SLIME if it's not already running."
+;;  (unless (slime-connected-p)
+;;    (save-excursion
+;;      (slime))))
+;;
+;;(add-hook 'lisp-mode-hook #'my-start-slime-if-needed)
 
 ;;; LISP documentation
-(acs-safe-customization-load "cltl2.el")
+;;(acs-safe-customization-load "cltl2.el")
 ;;(setq cltl2-root-url "c:/msys64/home/asuttles/doc/lisp/cltl")
 
 ;;; Look up CLHS in Info.
-(require 'info-look)
+;;;(require 'info-look)
 
-  
 ;;; Keymap
-(defun my-slime-mode-hook ()
- "define keys for my functions to slime mode"
- (interactive)
- (define-key slime-mode-map (kbd "C-c C-d l") 'cltl2-lookup)
- (define-key slime-mode-map (kbd "C-c h") 'info-lookup-symbol))
-
-
-(add-hook 'slime-mode-hook 'my-slime-mode-hook)
+;;(defun my-slime-mode-hook ()
+;; "define keys for my functions to slime mode"
+;; (interactive)
+;; (define-key slime-mode-map (kbd "C-c C-d l") 'cltl2-lookup)
+;; (define-key slime-mode-map (kbd "C-c h") 'info-lookup-symbol))
+;;
+;;
+;;(add-hook 'slime-mode-hook 'my-slime-mode-hook)
 
 ;;; Open slime in 'other' window
-(setq display-buffer-alist
-      '(("\\*slime-repl\\*"
-         (display-buffer-in-other-window)
-         (reusable-frames . t))))
-
-;;; ---------------
-;;;       SML
-;;; ---------------
-
-;;;(autoload 'sml-mode "sml-mode" "Major mode for editing SML." t)
-;;;(autoload 'run-sml "sml-proc" "Run an inferior SML process." t)
-;;;
-;;;(add-to-list 'auto-mode-alist '("\\.\\(sml\\|sig\\)\\'" . sml-mode))
-;;;
-;;;(setq sml-program-name "poly")
-;;;(setq sml-default-arg "-i")
-
-;;; ---------------
-;;;     SCHEME
-;;; ---------------
-
-;;;(require 'gambit)
-
-;;; Gambit Scheme
-;;;(autoload 'gambit-inferior-mode "gambit" "Hook Gambit mode into cmuscheme.")
-;;;(autoload 'gambit-mode "gambit" "Hook Gambit mode into scheme.")
-;;;(add-hook 'inferior-scheme-mode-hook (function gambit-inferior-mode))
-;;;(add-hook 'scheme-mode-hook (function gambit-mode))
-;;;
-;;;(add-to-list 'auto-mode-alist '("\\.scm$" . scheme-mode))
-;;;(setq scheme-program-name "gsi -:d-")
-
-;;; Chicken Scheme
-;;;(setq scheme-program-name "csi -:c")
-;;;;;(autoload geiser-chicken "chicken")
-;;;(setq geiser-active-implementations '(chicken))
-;;;
-
-;; GNU Guile and Geiser
-(setq scheme-program-name "guile")
-(setq geiser-active-implementations '(guile))
-(require 'geiser-guile)
-
-;; Scheme Language Server
-;;(require 'lsp-scheme)
-;;(add-hook 'scheme-mode-hook #'lsp-scheme)
-;;(setq lsp-scheme-implementation "guile")
-
-;;;; --------------------------------------------------------------------------
-;;;;				      LUA
-;;;; --------------------------------------------------------------------------
-
-;;;(autoload 'lua-mode "lua-mode" "Lua editing mode." t)
-;;;(add-to-list 'auto-mode-alist '("\\.lua$" . lua-mode))
-;;;(add-to-list 'interpreter-mode-alist '("lua" . lua-mode))
-;;;
-;;;(defun run-lua ()
-;;;  "Run the lua REPL using commint."
-;;;  (interactive)
-;;;  (lua-start-process))
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				     SHELL
-;;;; --------------------------------------------------------------------------
-
-;; Cygwin Shell System and Tools
-
-;;(if (string= system-type "windows-nt")
-;;    (progn
-;;      (let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
-;;	(if (file-executable-p shell-executable)
-;;	    (progn
-;;	      (setq explicit-shell-file-name shell-executable)
-;;	      (setq shell-file-name "bash")
-;;	      (setq explicit-bash.exe-args '("--login" "-i"))
-;;	      ;(setq explicit-bash.exe-args '("--login"))	      
-;; 	      (setenv "SHELL" shell-file-name)
-;;	      (add-hook 'comint-output-filter-functions 'comint-strip-ctrl-m nil t))))
-;;      (setq w32-quote-process-args ?\")
-;;      (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)))
-
-;;;; --------------------------------------------------------------------------
-;;;;				  MAN and INFO
-;;;; --------------------------------------------------------------------------
-
-;; Set the INFO path
-;; Cannot change env var in MS Windows
-;;(setq Info-default-directory-list 
-;;      (append (list "c:/acs/info") Info-default-directory-list))
-(if (string= system-type "windows-nt") 
-    (setq Info-default-directory-list (list "c:/acs/info")))
-
-;;; Man pages open in "this" frame, "this" window
-(setq Man-notify-method 'pushy)
-
-(defun my-info-mode-hook ()
-  (local-set-key "j" 'next-line)
-  (local-set-key "k" 'previous-line)
-  (local-set-key "l" 'recenter-top-bottom)
-  (local-set-key ";" 'Info-history-back))
-
-(add-hook 'Info-mode-hook 'my-info-mode-hook)
-
-;;;; --------------------------------------------------------------------------
-;;;;				     E-MAIL
-;;;;				    SENDMAIL
-;;;; --------------------------------------------------------------------------
-
-;;; See GNUs
-
-;; orgstruct++-mode is enabled in Gnus message buffers to aid in creating 
-;;   structured email messages.
-
-;;;(add-hook 'message-mode-hook 'orgstruct++-mode 'append)
-;;;(add-hook 'message-mode-hook 'turn-on-auto-fill 'append)
-;;;(add-hook 'message-mode-hook 'bbdb-define-all-aliases 'append)
-;;;(add-hook 'message-mode-hook 'orgtbl-mode 'append)
-;;;(add-hook 'message-mode-hook 'turn-on-flyspell 'append)
-;;;(add-hook 'message-mode-hook '(lambda () (setq fill-column 72)) 'append)
-;;;(add-hook 'message-mode-hook '(lambda () (local-set-key (kbd "C-c M-o") 'org-mime-htmlize)) 'append)
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				    SPELLING
-;;;; --------------------------------------------------------------------------
-
-;;; Note: This aspell is non-curses downloaded from: http://aspell.net/win32/
-
-;;; Put aspell on the PATH and Execution Path
-;; (if (string= system-type "windows-nt")
-;;     (progn
-;;       (cond ((and 
-;; 	      (not (string-match "aspell" (getenv "PATH")))
-;; 	      (file-exists-p "C:/aspell/bin")) 
-;; 	     (setenv "PATH" (concat (getenv "PATH") ";C:\\aspell\\bin"))))
-
-;;       (setq exec-path 
-;; 	    (append exec-path
-;; 		    (cond ((member "C:/aspell/bin" exec-path) nil)
-;; 			  (t (list "C:/aspell/bin")))))
-
-;;       ;; Define aspell as Spelling Program
-;;       (setq ispell-program-name "C:\\aspell\\bin\\aspell.exe")
-
-;;       ;; Flyspell 'list' Command
-;;       (setq ispell-list-command "list")))
-
-;;;; --------------------------------------------------------------------------
-;;;;				   ESV Bible
-;;;; --------------------------------------------------------------------------
-
-;;;(require 'esv)
-
-;;; C-c e looks up a passage and displays it in a pop-up window
-;;;(define-key global-map [(control c) ?e] 'esv-passage)
-
-;;; C-c i inserts an ESV passage in plain-text format at point
-;;;(define-key global-map [(control c) ?i] 'esv-insert-passage)
-
-;;; "TEST" or "IP"
-;;;(setq esv-key "IP")
-
-;;;(add-hook 'text-mode-hook 'turn-on-esv-mode)
-;;;(add-hook 'org-mode-hook 'turn-on-esv-mode)
-
-;;;; --------------------------------------------------------------------------
-;;;;				 IMAGE VIEWING
-;;;; --------------------------------------------------------------------------
-
-;;; Enable image viewing
-(auto-image-file-mode t)
-;;; (setq image-file-name-extensions 
-;;;      (append image-file-name-extensions (list "eps" "jpg" "png" )))
-
+;;;(setq display-buffer-alist
+;;;      '(("\\*slime-repl\\*"
+;;;         (display-buffer-in-other-window)
+;;;         (reusable-frames . t))))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			    UTILITY FUNCTIONS/TOOLS
@@ -1162,13 +820,13 @@ with one containing the contents of the directory.  Otherwise, invoke
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(ignored-local-variable-values
-   '((Base . 10)
-     (Package . HUNCHENTOOT)
-     (Syntax . COMMON-LISP)))
  '(package-selected-packages
-   '(votd sicp ac-geiser geiser-guile scheme-complete geiser geiser-chicken vterm-toggle vterm x86-lookup lsp-ui web-mode go-eldoc yasnippet-snippets go-snippets lsp-mode company-go counsel sml-mode org-bullets paredit slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode)))
-
+   '(ac-geiser company-anaconda company-go company-jedi counsel diff-hl dired-git
+	       diredfl dirvish elpy find-file-in-project flycheck geiser-chicken
+	       geiser-guile go-eldoc go-snippets gptel lsp-scheme lsp-ui magit
+	       marginalia nasm-mode org-bullets paredit py-autopep8
+	       scheme-complete sicp slime-company slime-repl-ansi-color sml-mode
+	       vertico votd vterm-toggle web-mode x86-lookup yasnippet-snippets)))
 
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
@@ -1180,5 +838,3 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; fill-column:80 ***
 ;;; comment-column:0 ***
 ;;; End: ***
-
-
