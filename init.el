@@ -1,7 +1,9 @@
+;;; init.el --- My Emacs Configuration -*- lexical-binding: t; -*-
+
 ;;;; ===========================================================================
 ;;;;			       ~*- MODE: emacs-lisp -*-
 ;;;;
-;;;;		   Andrew Suttles' EMACS initialization file
+;;;;		      Andrew Suttles' EMACS initialization file
 ;;;;
 ;;;; ===========================================================================
 
@@ -10,13 +12,6 @@
 (if (equal system-type 'windows-nt)
     (setq load-path (cons "~/.emacs.d/site-lisp" load-path)))
 
-
-;;;; --------------------------------------------------------------------------
-;;;;				      GPG
-;;;; --------------------------------------------------------------------------
-
-(if (equal system-type 'windows-nt)
-    (setq package-gnupghome-dir (expand-file-name "~/.gnupg")))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    PACKAGES
@@ -37,13 +32,26 @@
 
 (require 'use-package)
 (setq use-package-always-ensure t)
+(setq use-package-compute-statistics t)
+
+(use-package benchmark-init
+  :ensure t
+  :init (benchmark-init/activate)
+  :hook (after-init . benchmark-init/deactivate))
+
+;;;; --------------------------------------------------------------------------
+;;;;				      GPG
+;;;; --------------------------------------------------------------------------
+
+(if (equal system-type 'windows-nt)
+    (setq package-gnupghome-dir (expand-file-name "~/.gnupg")))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			  MY CUSTOMIZATION
 ;;;; --------------------------------------------------------------------------
 
 ;;; Customize EMACS with aditional personal customizations
-(setq my-customizations-directory "~/.emacs.d/my-lisp")
+(defvar my-customizations-directory "~/.emacs.d/my-lisp")
 
 ;;; Safely load ELISP extensions
 (defun acs-safe-customization-load (filename)
@@ -52,7 +60,7 @@
 					      filename)))
     (if (file-readable-p customization-file)
 	(load-file customization-file)
-      (message "Cannot Load: " customization-file))))
+      (message "Cannot Load: %s" customization-file))))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			   SERVER and REPL
@@ -76,6 +84,7 @@
 ;;; Configure Unicode Icon Support
 (use-package all-the-icons
   :ensure t
+  :defer t
   :config
   (when (display-graphic-p)
     ;; Set Cascadia Mono as the primary font for unicode glyphs
@@ -83,25 +92,48 @@
     ;; Also add all-the-icons font for icon-specific glyphs
     (set-fontset-font t 'unicode (font-spec :family "all-the-icons") nil 'append)))
 
+
+;;;; --------------------------------------------------------------------------
+;;;;				   DASHBOARD
+;;;; --------------------------------------------------------------------------
+
+(setq inhibit-startup-screen t)
+
+
+;;; Create a startup dashboard
+(use-package dashboard
+  :ensure t
+  :init
+  ;;(setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
+  (dashboard-setup-startup-hook)  
+  (setq dashboard-startup-banner 'logo
+        dashboard-center-content nil
+        dashboard-set-heading-icons nil
+        dashboard-set-file-icons t
+	dashboard-items '((recents  . 7)
+                          (bookmarks . 5)
+			  (agenda    . 10))))
+
 ;;;; --------------------------------------------------------------------------
 ;;;;				     DIRED
 ;;;; --------------------------------------------------------------------------
 
+;;; Define function to open files with default Windows program
+(defun acs-dired-do-operate-on-file ()
+  "Open the current file with its default Windows program."
+  (interactive)
+  (w32-shell-execute "open"
+                     (convert-standard-filename (dired-get-filename))))
+
 ;;; Config directory editor
 (use-package dired
   :ensure nil  ;; built-in, so no install
+  :defer t  
   :commands (dired dired-jump)
   :bind (("C-x C-j" . dired-jump))
   :config
   ;; Kill old dired buffers when opening new ones
   (setq dired-kill-when-opening-new-dired-buffer t)
-
-  ;; Define function to open files with default Windows program
-  (defun acs-dired-do-operate-on-file ()
-    "Open the current file with its default Windows program."
-    (interactive)
-    (w32-shell-execute "open"
-                       (convert-standard-filename (dired-get-filename))))
 
   ;; You can bind your custom function here, e.g.:
   (define-key dired-mode-map (kbd "C-c o") #'acs-dired-do-operate-on-file))
@@ -109,6 +141,7 @@
 ;;; Add extra dired functionality
 (use-package dired-x
   :ensure nil
+  :defer t
   :after dired
   :config
   (setq dired-omit-files (concat dired-omit-files "\\|^\\.DS_Store$"))
@@ -119,8 +152,16 @@
 ;;; Show git status in dired
 (use-package diff-hl
   :ensure t
+  :defer t
   :hook ((dired-mode . diff-hl-dired-mode)
          (after-init . global-diff-hl-mode)))
+
+;;; Open Subtrees in dired
+(use-package dired-subtree
+  :defer t
+  :bind (:map dired-mode-map
+              ("i" . dired-subtree-toggle)))
+
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FRAME PROPERTIES
@@ -188,6 +229,7 @@
 
 ;;; UI toolkit for interactive command menus
 (use-package transient ; Needed for magit
+  :defer t
   :ensure t)
 
 ;;;; --------------------------------------------------------------------------
@@ -199,9 +241,13 @@
 (column-number-mode 1)
 
 ;; Format time/date in mode line
-(setq display-time-format "   %a %b %e %I:%M %p")
-(setq display-time-interval 30)
-(display-time-mode 1)
+(use-package time
+  :ensure nil ; built-in package
+  :custom
+  (display-time-format "   %a %b %e %I:%M %p")
+  (display-time-interval 30)
+  :config
+  (display-time-mode 1))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FILE MANAGEMENT
@@ -210,13 +256,19 @@
 ;;; Bind find-file-at-point default keybindings
 (ffap-bindings)
 
+;;; Track recently opened files
+(require 'recentf)
+(recentf-mode 1)
+
+
 ;;;; --------------------------------------------------------------------------
 ;;;;			       BUFFER NAVIGATION
 ;;;; --------------------------------------------------------------------------
 
 ;;; Allow the use of the mouse wheel
 (if (display-graphic-p)
-    (mwheel-install))
+    ;(mwheel-install))
+    (mouse-wheel-mode))
 
 ;;; Preserve screen position when scrolling...
 (setq scroll-preserve-screen-position 1)
@@ -235,11 +287,12 @@
 ;;;; --------------------------------------------------------------------------
 
 ;;; Uniquify buffers (avoid name clashes)
-(require 'uniquify)
-(setq uniquify-buffer-name-style 'forward)
-(setq uniquify-seperator "/")
-(setq uniquify-ignore-buffers-re "^\\*")    ;; Don’t rename special buffers
-(setq uniquify-after-kill-buffer-p nil)
+(use-package uniquify
+  :ensure nil  ;; it's built-in, so no need to install
+  :init
+  (setq uniquify-buffer-name-style 'forward
+        uniquify-ignore-buffers-re "^\\*"
+        uniquify-after-kill-buffer-p nil))
 
 (acs-safe-customization-load "buffer-management.el")
 
@@ -280,7 +333,11 @@
     (setq Info-default-directory-list (list "c:/acs/info")))
 
 ;;; Man pages open in "this" frame, "this" window
-(setq Man-notify-method 'pushy)
+(use-package man
+  :ensure nil  ; It's built-in
+  :defer t  
+  :custom
+  (Man-notify-method 'pushy))
 
 (defun my-info-mode-hook ()
   (local-set-key "j" 'next-line)
@@ -303,18 +360,21 @@
 ;;;				      EWW
 ;;; ----------------------------------------------------------------------------
 
-;;; Scroll up by half-pages in EWW-mode
-(defun acs-half-page-scroll-up ()
-  (interactive)
-  (progn
+(use-package eww
+  :ensure nil  ;; eww is built-in
+  :defer t
+  :hook ((eww-mode . visual-line-mode)
+         (eww-mode . my/eww-setup))
+  :config
+  (defun my/eww-half-page-scroll-up ()
+    "Scroll up by half a page in `eww-mode`."
+    (interactive)
     (move-to-window-line nil)
-    (recenter-top-bottom 1)))
+    (recenter-top-bottom 1))
 
-;;; Define a function to load when eww-mode is invoked
-(add-hook 'eww-mode-hook
-          (lambda ()
-	    (define-key eww-mode-map [? ] #'acs-half-page-scroll-up)
-            (visual-line-mode)))
+  (defun my/eww-setup ()
+    "Custom keybindings and setup for `eww-mode`."
+    (define-key eww-mode-map (kbd "SPC") #'my/eww-half-page-scroll-up)))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				 AUTOCOMPLETION
@@ -377,10 +437,12 @@
 (acs-safe-customization-load "text-editing.el")
 
 ;;; Ignore whitespace when diffing
-(setq ediff-diff-options " -b ")
-
-;;; Ediff control panel in same frame
-(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+(use-package ediff
+  :ensure nil  ; Built-in package
+  :defer t  
+  :custom
+  (ediff-diff-options " -b ")
+  (ediff-window-setup-function 'ediff-setup-windows-plain))
 
 ;;; Split horizontally instead of vertically
 ;;;(setq ediff-split-window-function 'split-window-horizontally)
@@ -392,7 +454,7 @@
 
 ;;; Git Management
 (use-package magit
- :ensure t
+ :defer t
  :after transient)
 
 ;;;; --------------------------------------------------------------------------
@@ -406,17 +468,29 @@
 ;;;;				    ORG MODE
 ;;;; --------------------------------------------------------------------------
 
+;;; Open the org link at point using eww, when requested
+(defun acs-org-open-at-point (&optional arg)
+  "Open org links using `eww` if prefix arg is provided."
+  (interactive "P")
+  (if (not arg)
+      (org-open-at-point)
+    (let ((browse-url-browser-function #'eww-browse-url))
+      (org-open-at-point))))
+
 ;;; Enable and configure the org-mode package
 (use-package org
   :mode ("\\.org\\'" . org-mode)
   :bind (("\C-cl" . org-store-link)
          ("\C-ca" . org-agenda)
          ("\C-cb" . org-switchb))
-  :hook ((org-mode . acs-enable-org-keybindings))
   :config
   ;; Startup in overview instead of expanded
   (setq org-startup-folded t)
 
+  ;; Define org-agenda files
+  (setq org-agenda-files '("~/org/meeting-notes.org"
+			   "~/org/278COS.org"))
+  
   ;; Define task states
   (setq org-todo-keywords
         '((sequence "TODO" "WORK" "|" "DONE")))
@@ -431,20 +505,9 @@
   ;; LaTeX preview settings
   (setq org-format-latex-options
         (plist-put (copy-sequence org-format-latex-options) :scale 2.5)
-        org-startup-with-latex-preview t))
+        org-startup-with-latex-preview t)
 
-;;; Customized org support functions...
-(defun acs-enable-org-keybindings ()
-  "Add custom keybindings for org-mode."
   (define-key org-mode-map (kbd "C-c C-o") #'acs-org-open-at-point))
-
-(defun acs-org-open-at-point (&optional arg)
-  "Open org links using `eww` if prefix arg is provided."
-  (interactive "P")
-  (if (not arg)
-      (org-open-at-point)
-    (let ((browse-url-browser-function #'eww-browse-url))
-      (org-open-at-point))))
 
 (defun acs-sort-priorities ()
   "Sort org Tasks by status, then priority"
@@ -459,6 +522,106 @@
 (use-package org-bullets
   :ensure t
   :hook (org-mode . org-bullets-mode))
+
+;;; Swap Current Field with the Next Field
+(defun acs-org-table-swap-cells ()
+  "Swap the content of the current cell with the next one in the same row."
+  (interactive)
+  (when (org-at-table-p)
+    (let ((field1 (org-table-get-field))
+          (col1 (org-table-current-column)))
+      (org-table-goto-column (1+ col1))
+      (let ((field2 (org-table-get-field)))
+	(org-table-blank-field)
+	(insert field1)
+        (org-table-goto-column col1)
+        (org-table-blank-field)
+	(insert field2)
+        (org-table-align)))))
+
+(defvar acs-meeting-notes-file "~/org/meeting-notes.org")
+
+(defun acs-process-rocketbook-scan (scan-text)
+  "Process Rocketbook SCAN-TEXT and append it to meeting-notes.org."
+  (let ((lines (split-string scan-text "\n" t))
+        (meeting "MISC")
+        (date nil)
+        (notes '())
+        (todos '())
+        (current-todo nil))
+
+    ;; Step 1: Parse the scan
+    (dolist (line lines)
+      (cond
+
+       ;; Match meeting title
+       ((string-match "^##\\s-*\\(.*?\\)\\s-*##$" line)
+        (setq meeting (match-string 1 line)))
+
+       ;; Match date
+       ((string-match "^#\\s-*DATE:\\s-*\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)" line)
+        (setq date (match-string 1 line)))
+
+       ;; Match new TODO
+       ((string-match "^@\\s-*TODO:\\s-*\\(.*\\)$" line)
+        (setq current-todo `(:text ,(match-string 1 line)))
+        (push current-todo todos))
+
+       ;; DEADLINE (add to current-todo)
+       ((and current-todo
+             (string-match "^@\\s-*DEADLINE:\\s-*\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)" line))
+        (setq current-todo (plist-put current-todo :deadline (match-string 1 line)))
+        (setf (car todos) current-todo)) ;; update most recent todo in list
+
+       ;; SCHEDULED
+       ((and current-todo
+             (string-match "^@\\s-*SCHEDULED:\\s-*\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)" line))
+        (setq current-todo (plist-put current-todo :scheduled (match-string 1 line)))
+        (setf (car todos) current-todo)) ;; update most recent todo in list
+
+       ;; Other @ lines
+       ((string-match "^@\\s-*.*" line)
+        nil)
+
+       ;; Notes
+       ((string-match "^-\\s-*\\(.*\\)$" line)
+        (push (match-string 1 line) notes))))
+
+    ;; Step 2: Default date
+    (unless date
+      (setq date (format-time-string "%Y-%m-%d")))
+
+    ;; Step 3: Format content
+    (let* ((heading (concat "* " meeting))
+           (date-entry (concat "** " date))
+           (notes-text (when notes
+                         (concat "*** NOTES\n"
+                                 (mapconcat (lambda (n) (concat "- " n)) (reverse notes) "\n"))))
+           (todo-entries
+            (mapconcat
+             (lambda (todo)
+               (let ((line (concat "*** TODO [#B] " (plist-get todo :text))))
+                 (when (plist-get todo :deadline)
+                   (setq line (concat line "\nDEADLINE: <" (plist-get todo :deadline) ">")))
+                 (when (plist-get todo :scheduled)
+                   (setq line (concat line "\nSCHEDULED: <" (plist-get todo :scheduled) ">")))
+                 line))
+             (reverse todos) "\n")))
+
+      ;; Step 4: Write to file
+      (with-current-buffer (find-file-noselect acs-meeting-notes-file)
+        (goto-char (point-min))
+        (unless (re-search-forward (concat "^" (regexp-quote heading)) nil t)
+          (goto-char (point-max))
+          (insert "\n" heading "\n"))
+
+        (re-search-backward (concat "^" (regexp-quote heading)) nil t)
+        (org-end-of-subtree t t)
+
+        (insert "\n" date-entry "\n")
+        (when notes-text (insert notes-text "\n"))
+        (when todo-entries (insert todo-entries "\n"))
+        (save-buffer)))))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  PROGRAMMING
@@ -501,6 +664,7 @@
 
 (use-package nasm-mode
   :ensure t
+  :defer t
   :config
   (add-hook 'asm-mode-hook 'nasm-mode))
 
@@ -511,6 +675,7 @@
 
 (use-package x86-lookup
   :ensure t
+  :defer t
   :config
   (setq  x86-lookup-pdf "~/programming/asm/x86ref/intelVol2.pdf"))
 
@@ -518,26 +683,26 @@
 ;;;    GOLANG
 ;;; ---------------
 
-;;; Setup Go backend for Company
-(require 'company-go)
+(use-package go-mode
+  :ensure t
+  :defer t
+  :mode ("\\.go\\'" . go-mode)
+  :hook (go-mode . my-go-mode-setup)
+  :config
+  (defun my-go-mode-setup ()
+    "Custom setup for `go-mode'."
+    (add-hook 'before-save-hook #'gofmt-before-save nil t)
+    (setq tab-width 4)
+    (local-set-key (kbd "M-.") #'godef-jump)
+    (yas-minor-mode 1)
+    (eldoc-mode 1)
+    (set (make-local-variable 'company-backends) '(company-go))
+    (company-mode)))
 
-;;; Format code before saving
-(defun my-go-mode-hook ()
-  "Stuff to do before loading go-mode"
-  (message "Go mode hook")
-  (add-hook 'before-save-hook 'gofmt-before-save) ; gofmt before every save
-  (setq tab-width 4)				  ; reasonable tab width
-  ;; Godef jump key binding                                                      
-  (local-set-key (kbd "M-.") 'godef-jump)
-  ;; Yasnippet Minor Mode
-  (yas-minor-mode 1)
-  ;; eldoc minor mode
-  (eldoc-mode 1)
-  ;; Use Go company backend
-  (set (make-local-variable 'company-backends) '(company-go))
-  (company-mode))
-
-(add-hook 'go-mode-hook 'my-go-mode-hook)
+(use-package company-go
+  :ensure t
+  :defer t
+  :after (company go-mode))
 
 ;;; enable flycheck
 ;;;(add-hook 'go-mode-hook 'flycheck-mode)
@@ -552,6 +717,7 @@
 ;;; Enable slime for code editing and repl
 (use-package slime
   :ensure t
+  :defer t
   :init
   ;; CCL on MS Windows
   (setq inferior-lisp-program
@@ -572,28 +738,31 @@
 (use-package slime-company
   :after (slime company)
   :ensure t
+  :defer t
   :config
   (setq slime-company-completion 'fuzzy))
 
 (use-package slime-fancy
   :after slime
+  :defer t
   :ensure nil)
 
 (use-package slime-repl-ansi-color
   :ensure t
+  :defer t
   :hook (slime-repl-mode . slime-repl-ansi-color-mode))
 
 ;;; Configure hyperspec lookups
-(require 'hyperspec)
-
-(defun hyperspec-lookup--hyperspec-lookup-w3m (orig-fun &rest args)
- (let ((browse-url-browser-function 'eww-browse-url))
-   (apply orig-fun args)))
-
-(advice-add 'hyperspec-lookup :around #'hyperspec-lookup--hyperspec-lookup-w3m)
-
-(with-eval-after-load 'slime
-  (define-key slime-mode-map (kbd "C-c C-d h") #'hyperspec-lookup))
+;;;(require 'hyperspec)
+;;;
+;;;(defun hyperspec-lookup--hyperspec-lookup-w3m (orig-fun &rest args)
+;;; (let ((browse-url-browser-function 'eww-browse-url))
+;;;   (apply orig-fun args)))
+;;;
+;;;(advice-add 'hyperspec-lookup :around #'hyperspec-lookup--hyperspec-lookup-w3m)
+;;;
+;;;(with-eval-after-load 'slime
+;;;  (define-key slime-mode-map (kbd "C-c C-d h") #'hyperspec-lookup))
 
 ;;; Note:
 ;;; Possible packages to add: rainbow-delimiters, paredit, smartparens
@@ -641,12 +810,124 @@
 ;;;         (display-buffer-in-other-window)
 ;;;         (reusable-frames . t))))
 
+;;;; ---------------------------------------------------------------------------
+;;;;				     EMAIL
+;;;; ---------------------------------------------------------------------------
+
+;;; Turn email body into org-mode notes
+(defun acs-extract-rocketbook-body ()
+  "Extract Rocketbook OCR body text from the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "\\.pdf$" nil t)
+      (let ((start (match-beginning 0)))
+        (if (re-search-forward "^[-]+\\s-*\nText transcription is made possible" nil t)
+            (buffer-substring-no-properties start (match-beginning 0))
+          (buffer-substring-no-properties start (point-max)))))))
+
+(defun acs-edit-ocr-text-before-processing (raw-text)
+  "Let user edit RAW-TEXT in a temp buffer. Returns the edited string.
+Press C-c C-c to accept, or C-c C-k to cancel."
+  (let ((bufname "*OCR Review*")
+        (result nil))
+    (with-current-buffer (get-buffer-create bufname)
+      (erase-buffer)
+      (insert raw-text)
+      (goto-char (point-min))
+      (text-mode)
+      (setq-local header-line-format
+                  "Fix OCR text. C-c C-c to continue, C-c C-k to cancel.")
+      ;; Set up finishing commands
+      (use-local-map
+       (let ((map (make-sparse-keymap)))
+         (set-keymap-parent map (current-local-map))
+         (define-key map (kbd "C-c C-c")
+           (lambda ()
+             (interactive)
+             (setq result (buffer-string))
+             (throw 'done t)))
+         (define-key map (kbd "C-c C-k")
+           (lambda ()
+             (interactive)
+             (setq result nil)
+             (throw 'done t)))
+         map)))
+    (pop-to-buffer bufname)
+    ;; Block until user presses C-c C-c or C-c C-k
+    (catch 'done
+      (recursive-edit))
+    (kill-buffer bufname)
+    result))
+
+(defun acs-process-gnus-rocketbook-message ()
+  "Process Rocketbook OCR text from current Gnus article buffer."
+  (interactive)
+  (let ((ocr-text (acs-extract-rocketbook-body)))
+    (if ocr-text
+	(let ((fixed-text (acs-edit-ocr-text-before-processing ocr-text)))
+	  (when fixed-text
+	    (acs-process-rocketbook-scan fixed-text)))
+      (message "Rocketbook OCR text not found in buffer: %s" (buffer-name)))))
+
+
+;;; Load Gnus (built-in in Emacs)
+(use-package gnus
+  :commands (gnus)
+  :init
+  (setq user-full-name "Andrew Suttles"
+        user-mail-address "acs@disroot.org")
+  :config
+  (setq gnus-select-method
+        '(nnimap "disroot"
+                 (nnimap-address "disroot.org")
+                 (nnimap-server-port 993)
+                 (nnimap-stream ssl)))
+  (setq gnus-permanently-visible-groups "^nnimap\\+disroot:")
+
+  (setq gnus-secondary-select-methods
+	'((nntp "news.gwene.org")
+	  ;(rss "https://planet.lisp.org/atom.xml")
+	  (nntp "news.gmane.io")))
+  
+  ;; SMTP config
+  (setq smtpmail-smtp-server "smtp.disroot.org"
+        smtpmail-smtp-service 465
+        smtpmail-stream-type 'ssl
+        message-send-mail-function 'smtpmail-send-it
+        gnus-imap4-use-auth-source t
+        smtpmail-auth-credentials "~/.authinfo.gpg")
+  ;; UI preferences
+  (setq gnus-inhibit-startup-message t
+        gnus-read-active-file nil
+        gnus-thread-sort-functions '(gnus-thread-sort-by-date))
+  ;; Keybinding in gnus-article-mode
+  (define-key gnus-article-mode-map (kbd "C-c m") #'acs-process-gnus-rocketbook-message))
+
+;;;; ---------------------------------------------------------------------------
+;;;;				    WEATHER
+;;;; ---------------------------------------------------------------------------
+
+(defun my/wttrin-setup ()
+  "Set up *wttr.in* buffer appearance."
+  (face-remap-add-relative 'default :family "Monospace" :height 100)
+  (visual-line-mode -1)
+  (setq truncate-lines t))
+
+(use-package wttrin
+  :ensure t
+  :hook (wttrin-mode . my/wttrin-setup))
+
+
 ;;;; --------------------------------------------------------------------------
 ;;;;			    UTILITY FUNCTIONS/TOOLS
 ;;;; --------------------------------------------------------------------------
 
 ;;; Set decimal precision for calculator
-(setq calculator-number-digits 6)
+(use-package calculator
+  :ensure nil
+  :defer t
+  :custom
+  (setq calculator-number-digits 6))
 
 ;;; Custom Configurations
 (acs-safe-customization-load "utility-functions.el")
@@ -821,12 +1102,19 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(ac-geiser company-anaconda company-go company-jedi counsel diff-hl dired-git
-	       diredfl dirvish elpy find-file-in-project flycheck geiser-chicken
+   '(ac-geiser benchmark-init company-anaconda company-go company-jedi counsel
+	       diff-hl dired-git dired-subtree diredfl
+	       dirvish elpy find-file-in-project flycheck geiser-chicken
 	       geiser-guile go-eldoc go-snippets gptel lsp-scheme lsp-ui magit
 	       marginalia nasm-mode org-bullets paredit py-autopep8
 	       scheme-complete sicp slime-company slime-repl-ansi-color sml-mode
 	       vertico votd vterm-toggle web-mode x86-lookup yasnippet-snippets)))
+
+;;; TODOs
+;;; Update Dashboard with Agenda, weather, and votd
+;;; Update keybindings
+;;; Delete unused packages??
+;;; setup elfeed for reddit or hackernews or foxnews, etc feeds
 
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
