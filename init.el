@@ -12,6 +12,11 @@
 (if (equal system-type 'windows-nt)
     (setq load-path (cons "~/.emacs.d/site-lisp" load-path)))
 
+;;; Disable lockfiles and notify support
+(setq create-lockfiles nil
+      file-notify-support nil)
+
+;;;(toggle-debug-on-error 1)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    PACKAGES
@@ -21,7 +26,10 @@
 (require 'package)
 
 (setq package-archives
-      '(("melpa" . "https://melpa.org/packages/")))
+      '(("melpa" . "https://melpa.org/packages/")
+	;;("nongnu" . "https://elpa.nongnu.org/nongnu/")
+	))
+
 
 (unless package-archive-contents
   (package-refresh-contents))
@@ -43,8 +51,12 @@
 ;;;;				      GPG
 ;;;; --------------------------------------------------------------------------
 
-(if (equal system-type 'windows-nt)
-    (setq package-gnupghome-dir (expand-file-name "~/.gnupg")))
+(setq package-gnupghome-dir "/c/msys64/home/asuttles/.emacs.d/elpa/gnupg")
+(setq epg-gpg-home-directory package-gnupghome-dir)
+(setq epg-gpg-program "/usr/bin/gpg")
+
+
+(setq epg-debug t)  ;; optional, logs EPG I/O in *epg-debug*
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			  MY CUSTOMIZATION
@@ -92,27 +104,11 @@
     ;; Also add all-the-icons font for icon-specific glyphs
     (set-fontset-font t 'unicode (font-spec :family "all-the-icons") nil 'append)))
 
-
-;;;; --------------------------------------------------------------------------
-;;;;				   DASHBOARD
-;;;; --------------------------------------------------------------------------
-
-(setq inhibit-startup-screen t)
-
-
-;;; Create a startup dashboard
-(use-package dashboard
-  :ensure t
-  :init
-  ;;(setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
-  (dashboard-setup-startup-hook)  
-  (setq dashboard-startup-banner 'logo
-        dashboard-center-content nil
-        dashboard-set-heading-icons nil
-        dashboard-set-file-icons t
-	dashboard-items '((recents  . 7)
-                          (bookmarks . 5)
-			  (agenda    . 10))))
+;;; Highlight non-ascii chars in buffer
+;;; Useful for finding copy/paste errors into ascii buffers
+(defun highlight-non-ascii ()
+  (interactive)
+  (highlight-regexp "[^\x00-\x7F]" 'hi-yellow))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     DIRED
@@ -162,6 +158,18 @@
   :bind (:map dired-mode-map
               ("i" . dired-subtree-toggle)))
 
+;;;; --------------------------------------------------------------------------
+;;;;				     SHELL
+;;;; --------------------------------------------------------------------------
+
+(setq explicit-shell-file-name "bash")
+(setq shell-file-name explicit-shell-file-name)
+(setq explicit-bash.exe-args '("--login" "-i"))
+
+;; If using use-package
+(use-package fish-mode
+  :ensure t
+  :mode ("\\.fish\\'" . fish-mode))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FRAME PROPERTIES
@@ -405,6 +413,12 @@
 
 ;;; Define where backups are stored
 (setq backup-directory-alist (quote ((".*" . "~/.backups"))))
+(setq backup-by-copying t) 
+(setq delete-old-versions t
+      kept-new-versions 3
+      kept-old-versions 2
+      version-control t)
+
 
 ;;; Track file locations
 (save-place-mode 1)
@@ -457,6 +471,9 @@
  :defer t
  :after transient)
 
+;;; Use Magit, no other version control
+(setq vc-handled-backends nil)
+
 ;;;; --------------------------------------------------------------------------
 ;;;;				    PRINTING
 ;;;; --------------------------------------------------------------------------
@@ -479,6 +496,7 @@
 
 ;;; Enable and configure the org-mode package
 (use-package org
+  :ensure t
   :mode ("\\.org\\'" . org-mode)
   :bind (("\C-cl" . org-store-link)
          ("\C-ca" . org-agenda)
@@ -489,7 +507,15 @@
 
   ;; Define org-agenda files
   (setq org-agenda-files '("~/org/meeting-notes.org"
-			   "~/org/278COS.org"))
+			   "~/org/278COS.org"
+			   "~/org/fd.org"
+			   "~/org/home.org"))
+
+  ;; Hide Tags in Agenda
+  (setq org-agenda-hide-tags-regexp ".*")
+
+  ;; Only look forward a month
+  (setq org-agenda-span 30)
   
   ;; Define task states
   (setq org-todo-keywords
@@ -624,6 +650,54 @@
         (save-buffer)))))
 
 ;;;; --------------------------------------------------------------------------
+;;;;				   DASHBOARD
+;;;; --------------------------------------------------------------------------
+
+(setq inhibit-startup-screen t)
+
+(use-package bible-gateway
+  :ensure t)
+
+;;; Create a startup dashboard
+(use-package dashboard
+  :ensure t
+  :init
+  (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
+  (dashboard-setup-startup-hook)  
+  (setq dashboard-startup-banner 'logo
+	dashboard-startupify-list
+	'(dashboard-insert-banner
+	  dashboard-insert-newline
+	  dashboard-insert-banner-title
+	  dashboard-insert-newline
+	  dashboard-insert-init-info
+	  dashboard-insert-newline
+	  dashboard-insert-newline	
+	  dashboard-insert-navigator
+	  dashboard-insert-items
+	  dashboard-insert-newline
+	  dashboard-insert-footer)
+	dashboard-set-navigator t
+	dashboard-navigator-buttons
+	'(((nil "Weather" "Open wttrin Buffer" (lambda (&rest _) (wttrin nil)) nil nil nil)
+	   (nil "News" "Open Hacker News" (lambda (&rest _) (hackernews)))
+	   (nil "Email" "Open gnus Buffer" (lambda (&rest _) (gnus)))
+	   (nil "Git" "Open magit" (lambda (&rest _) (magit)))
+	   (nil "Lisp REPL" "Open CCL REPL" (lambda (&rest _) (slime)))	   
+	   (nil "Shell" "Open emacs shell" (lambda (&rest _) (shell)))	   
+	   ))
+        dashboard-center-content nil
+	dashboard-agenda-sort-strategy '(priority-up todo-state-up)
+        dashboard-set-heading-icons nil
+	dashboard-item-names '(("Agenda for the coming week:" . "Action Items:"))
+        dashboard-set-file-icons t
+	dashboard-footer-messages (list (bible-gateway-get-verse))
+	dashboard-items '((recents   . 7)
+                          (bookmarks . 5)
+			  (agenda    . 20))))
+
+
+;;;; --------------------------------------------------------------------------
 ;;;;				  PROGRAMMING
 ;;;; --------------------------------------------------------------------------
 
@@ -713,27 +787,33 @@
 
 ;; Specify modes for Lisp file extensions
 (add-to-list 'auto-mode-alist '("\\.cl\\'" . lisp-mode))
+(add-to-list 'auto-mode-alist '("\\.lisp\\'" . lisp-mode))
+
+;; Quicklisp help for slime
+(load (expand-file-name "~/quicklisp/slime-helper.el"))
 
 ;;; Enable slime for code editing and repl
 (use-package slime
   :ensure t
   :defer t
   :init
-  ;; CCL on MS Windows
-  (setq inferior-lisp-program
-	(if (eq system-type 'windows-nt)
-            "~/install/ccl/wx86cl64.exe --load ~/.ccl/ccl-init.lisp"
-          "sbcl"))
-  :hook
-  (lisp-mode . (lambda () (unless (slime-connected-p) (slime))))
+  ;; Common Lisp implementations
+  (setq slime-lisp-implementations
+        '((sbcl ("sbcl"))
+          (ccl ("~/install/ccl/wx86cl64.exe" "--load" "~/.ccl/ccl-init.lisp"))))
   :config
   (slime-setup '(slime-fancy slime-company))
   (setq slime-net-coding-system 'utf-8-unix)
   ;; Windows: show REPL in other window
   (add-to-list 'display-buffer-alist
                '("\\*slime-repl\\*"
-		 (display-buffer-reuse-window display-buffer-at-bottom)
-		 (window-height . 0.33))))
+                 (display-buffer-reuse-window display-buffer-at-bottom)
+                 (window-height . 0.33)))
+  ;; Attach hook *after* slime is loaded, so slime-connected-p exists
+  (add-hook 'lisp-mode-hook
+            (lambda ()
+              (unless (slime-connected-p)
+                (slime)))))
 
 (use-package slime-company
   :after (slime company)
@@ -809,6 +889,21 @@
 ;;;      '(("\\*slime-repl\\*"
 ;;;         (display-buffer-in-other-window)
 ;;;         (reusable-frames . t))))
+
+
+;;;; ---------------------------------------------------------------------------
+;;;;				     WASM
+;;;; ---------------------------------------------------------------------------
+
+;;; wat
+(add-to-list
+ 'treesit-language-source-alist
+ '(wat "https://github.com/wasm-lsp/tree-sitter-wasm" nil "wat/src"))
+
+;;; wast
+(add-to-list
+ 'treesit-language-source-alist
+ '(wast "https://github.com/wasm-lsp/tree-sitter-wasm" nil "wast/src"))
 
 ;;;; ---------------------------------------------------------------------------
 ;;;;				     EMAIL
@@ -907,16 +1002,21 @@ Press C-c C-c to accept, or C-c C-k to cancel."
 ;;;;				    WEATHER
 ;;;; ---------------------------------------------------------------------------
 
-(defun my/wttrin-setup ()
-  "Set up *wttr.in* buffer appearance."
-  (face-remap-add-relative 'default :family "Monospace" :height 100)
-  (visual-line-mode -1)
-  (setq truncate-lines t))
+(defun acs-wttrin-setup ()
+  "Custom settings for wttrin."
+  (setq truncate-lines t)
+  (when (string= (buffer-name) wttrin-buffer-name)
+    (setq buffer-face-mode-face nil)
+    (buffer-face-mode -1)))
 
 (use-package wttrin
   :ensure t
-  :hook (wttrin-mode . my/wttrin-setup))
-
+  :hook
+  (wttrin-mode . acs-wttrin-setup)
+  :config
+  (setq wttrin-default-locations '("Avon Ohio")
+	wttrin-unit-system "u"
+	wttrin-font-name "Cascadia Mono-11"))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			    UTILITY FUNCTIONS/TOOLS
@@ -1056,6 +1156,9 @@ Press C-c C-c to accept, or C-c C-k to cancel."
 
 ;;;; C-C
 
+;;; Last Window
+(global-set-key "o" 'acs-last-window)
+
 ;;; Bind copy line
 (global-set-key "w" 'acs-copy-line)
 
@@ -1083,13 +1186,6 @@ Press C-c C-c to accept, or C-c C-k to cancel."
 (global-set-key [(control kp-add)] 'joc-enlarge-by-five)
 (global-set-key [(control kp-subtract)] 'joc-shrink-by-five)
 
-;;;; [.] and [,]
-
-;;; Fast keys to switch windows in this frame
-(global-set-key "," 'other-window)
-(global-set-key "." 'acs-last-window)
-
-
 ;;;; OVERLOAD
 
 ;;; Overload the meta-q to fill region or paragraph
@@ -1102,16 +1198,15 @@ Press C-c C-c to accept, or C-c C-k to cancel."
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(ac-geiser benchmark-init company-anaconda company-go company-jedi counsel
-	       diff-hl dired-git dired-subtree diredfl
-	       dirvish elpy find-file-in-project flycheck geiser-chicken
-	       geiser-guile go-eldoc go-snippets gptel lsp-scheme lsp-ui magit
-	       marginalia nasm-mode org-bullets paredit py-autopep8
-	       scheme-complete sicp slime-company slime-repl-ansi-color sml-mode
-	       vertico votd vterm-toggle web-mode x86-lookup yasnippet-snippets)))
+   '(ac-geiser benchmark-init bible-gateway company-go counsel diff-hl dired-git
+	       dired-subtree diredfl eat ebnf-mode find-file-in-project
+	       fish-mode flycheck geiser-chicken geiser-guile gnuplot go-eldoc
+	       go-snippets hackernews lsp-scheme lsp-ui magit marginalia
+	       nasm-mode oberon org-bullets paredit scheme-complete sicp
+	       slime-company slime-repl-ansi-color sml-mode vertico vterm-toggle
+	       wat-ts-mode web-mode wttrin x86-lookup yasnippet-snippets)))
 
 ;;; TODOs
-;;; Update Dashboard with Agenda, weather, and votd
 ;;; Update keybindings
 ;;; Delete unused packages??
 ;;; setup elfeed for reddit or hackernews or foxnews, etc feeds
