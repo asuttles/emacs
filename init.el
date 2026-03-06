@@ -696,6 +696,15 @@
                           (bookmarks . 5)
 			  (agenda    . 20))))
 
+(defun acs-skip-dashboard-if-file ()
+  (when (and (boundp 'dashboard-mode)
+             (or buffer-file-name
+                 command-line-args-left))
+    (dashboard-mode -1)))
+
+(add-hook 'find-file-hook #'acs-skip-dashboard-if-file)
+
+
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  PROGRAMMING
@@ -719,7 +728,22 @@
 ;;; ---------------
 ;;;        C
 ;;; ---------------
-;; (require 'compile)
+(setq c-default-style
+      '((c-mode . "stroustrup")))
+
+(use-package clang-format
+  :ensure t
+  :bind (:map c-mode-base-map
+              ("C-c f" . clang-format-buffer)))
+
+(use-package eglot
+  :ensure t
+  :hook ((c-mode c++-mode) . eglot-ensure))
+
+(add-hook 'c-mode-common-hook
+          (lambda ()
+            (add-hook 'before-save-hook #'clang-format-buffer nil t)))
+
 
 (add-hook 'c-mode-hook
 	  (lambda ()
@@ -731,6 +755,14 @@
 		     (format "gcc -std=c99 -Wall -g %s -o %s.exe"
 			     filename
 			     (file-name-sans-extension filename)))))))
+(require 'reformatter)
+
+(reformatter-define clang-format
+  :program "clang-format")
+
+(add-hook 'c-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c C-f") #'clang-format-buffer)))
 
 ;;; ---------------
 ;;;      NASM
@@ -808,12 +840,12 @@
   (add-to-list 'display-buffer-alist
                '("\\*slime-repl\\*"
                  (display-buffer-reuse-window display-buffer-at-bottom)
-                 (window-height . 0.33)))
+                 (window-height . 0.33))))
   ;; Attach hook *after* slime is loaded, so slime-connected-p exists
-  (add-hook 'lisp-mode-hook
-            (lambda ()
-              (unless (slime-connected-p)
-                (slime)))))
+;;;  (add-hook 'lisp-mode-hook
+;;;            (lambda ()
+;;;              (unless (slime-connected-p)
+;;;                (slime)))))
 
 (use-package slime-company
   :after (slime company)
@@ -1198,13 +1230,14 @@ Press C-c C-c to accept, or C-c C-k to cancel."
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(ac-geiser benchmark-init bible-gateway company-go counsel diff-hl dired-git
-	       dired-subtree diredfl eat ebnf-mode find-file-in-project
-	       fish-mode flycheck geiser-chicken geiser-guile gnuplot go-eldoc
-	       go-snippets hackernews lsp-scheme lsp-ui magit marginalia
-	       nasm-mode oberon org-bullets paredit scheme-complete sicp
-	       slime-company slime-repl-ansi-color sml-mode vertico vterm-toggle
-	       wat-ts-mode web-mode wttrin x86-lookup yasnippet-snippets)))
+   '(ac-geiser benchmark-init bible-gateway clang-format company-go counsel diff-hl
+	       dired-git dired-subtree diredfl eat ebnf-mode
+	       find-file-in-project fish-mode flycheck geiser-chicken
+	       geiser-guile gnuplot go-eldoc go-snippets hackernews lsp-scheme
+	       lsp-ui magit marginalia nasm-mode oberon org-bullets paredit
+	       reformatter scheme-complete sicp slime-company
+	       slime-repl-ansi-color sml-mode vertico vterm-toggle wat-ts-mode
+	       web-mode wttrin x86-lookup yasnippet-snippets)))
 
 ;;; TODOs
 ;;; Update keybindings
