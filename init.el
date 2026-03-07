@@ -7,12 +7,6 @@
 
 (message "[reading file ~/init.el]")
 
-(if (equal system-type 'windows-nt)
-    (setq load-path (cons "c:/emacs/site-lisp" load-path)))
-
-(setq inhibit-startup-buffer-menu t)
-(setq initial-buffer-choice 'nil) 
-(setq inhibit-startup-screen t)
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     MELPA
@@ -65,39 +59,20 @@
 ;;; Start IELM - Inferior Emacs Lisp Mode (REPL)
 ;;(ielm)
 
-;;; Company Mode
-(eval-after-load "company"
-  '(add-to-list 'company-backends 'company-anaconda))
-
-(add-hook 'after-init-hook 'global-company-mode)
+;;;(add-hook 'after-init-hook 'global-company-mode)
 
 ;;; Define where backups are stored
 (setq backup-directory-alist (quote ((".*" . "~/.backups"))))
 
-;;;; --------------------------------------------------------------------------
-;;;;			      REMOTE FILE EDITING
-;;;; --------------------------------------------------------------------------
-
-(require 'tramp)
-
-(if (equal system-type 'windows-nt)
-    (setenv "PATH"
-	    (concat "c:/Program Files (x86)/PuTTY;" (getenv "PATH"))))
-
-(setq tramp-default-method "plink")
-;;(set-default 'tramp-auto-save-directory "c:/Users/asuttles/AppData/Local/Temp")
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				FRAME PROPERTIES
 ;;;; --------------------------------------------------------------------------
 
-;;; Turn off toolbar/menubar/scroll bar to maximize real estate
-(tool-bar-mode -1)
-(menu-bar-mode -1)
-(scroll-bar-mode -1)
-
-;;; Stop cursor from blinking
-(blink-cursor-mode 0)
+;; Force steady block cursor in terminal
+(unless (display-graphic-p)
+  (setq cursor-type 'box)
+    (send-string-to-terminal "\e[2 q"))
 
 ;;; Show matching parenthesis
 (show-paren-mode t)
@@ -109,8 +84,6 @@
 (setq query-replace-highlight t)
 
 ;;; Use faces to show meaning in text
-;; (if (not (equal (global-font-lock-mode) t))
-;;     (global-font-lock-mode t))
 (font-lock-mode 1)
 (setq font-lock-maximum-decoration t) ; Max decoration
 
@@ -123,49 +96,6 @@
 ;;; Set mouse color
 (set-mouse-color "black")
 
-
-;;; Size the Main Frame and Position is ROUGHLY in center of screen
-(if (not (null window-system))
-    (progn
-
-      ;; Frame Title (%b = buffer name, %f = filename)
-      (setq frame-title-format '("Andrew Suttles' Emacs: %b (%m) <" 
-			   default-directory ">"))
-
-      (set-frame-width (selected-frame) 100)
-      (set-frame-height (selected-frame) 50)
-      (set-frame-position (selected-frame) 80 40)))
-
-;; Set dedicated frames
-(setq same-window-buffer-names '("*inferior-lisp*"
-				 "*scheme*"
-				 "*Apropos*"
-				 "*Help*"
-				 ;;"*Completions*"
-				 ))
-
-;; (setq special-display-buffer-names '(;"*shell*"
-;; 				     "*Shell Command Output*"
-;; 				     "*info*"
-;; 				     "*terminal*"))
-
-
-;;; Custom Configurations
-
-;;; Custom frame properties when NOT in terminal
-(acs-safe-customization-load "frame-properties.el")
-
-
-;;;; --------------------------------------------------------------------------
-;;;;			       WINDOW PROPERTIES
-;;;; --------------------------------------------------------------------------
-
-;;; Always split windows vertically
-(setq split-width-threshold nil)
-
-(acs-safe-customization-load "window-sizing.el")
-(acs-safe-customization-load "window-swapping.el")
-(acs-safe-customization-load "window-properties.el")
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				    MODELINE
@@ -182,238 +112,8 @@
 ;;; Show time/date in mode line
 ;;(setq display-time-day-and-date t)	; Show time AND date
 
-;;; (setq display-time-interval 30)	; 30 Second Time Update Interval
-;;(setq display-time-24hr-format nil)	; 12 hour format
 (display-time)				; Display the Day, Date, Time, Load
 
-
-;;;; --------------------------------------------------------------------------
-;;;;				FILE MANAGEMENT
-;;;; --------------------------------------------------------------------------
-
-;;; *** COMPRESSIOIN/ARCHIVES ***
-;;; Read and write compressed and archived files
-;;;  of the form .gq, .z, .tgz, .tar
-(require 'jka-compr)
-
-;;; FFAP
-;;; Bind find-file-at-point default keybindings
-;;;
-;;; from ffap.el...
-;;; (ffap-bindings)                      ; do default key bindings
-;;;
-;;; ffap-bindings makes the following global key bindings:
-;;;
-;;; C-x C-f       find-file-at-point (abbreviated as ffap)
-;;; C-x 4 f       ffap-other-window
-;;; C-x 5 f       ffap-other-frame
-;;; S-mouse-3     ffap-at-mouse
-;;; C-S-mouse-3   ffap-menu
-(ffap-bindings)
-(setq ffap-require-prefix t) ; require the prefix arg
-;;; (setq ffap-url-regexp nil)   ; disable URL features
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				  TEXT EDITING
-;;;; --------------------------------------------------------------------------
-
-;;; Set the page delimiter
-(setq page-delimiter "^")
-
-;;; Yank text at point instead of at click.
-(setq mouse-yank-at-point t)
-
-;;; Allow user to narrow to region in buffer
-(put 'narrow-to-region 'disabled nil)
-
-;;; Custom Configurations
-(acs-safe-customization-load "text-editing.el")
-
-;;;; --------------------------------------------------------------------------
-;;;;				   TEXT TOOLS
-;;;; --------------------------------------------------------------------------
-
-;;; Ediff customizations
-;;;
-;;; (From Bill Clementson's Blog)
-(defconst ediff-ignore-similar-regions t)
-(defconst ediff-use-last-dir t)
-(defconst ediff-diff-options " -b ")
-
-;;; Grep equivalent on Windows - Need to update for MSYS
-;;; (setq grep-command "c:/cygwin/bin/grep -n -a -e ")
-;;; (setq grep-command "findstr /n /s ")
-
-
-;;;; --------------------------------------------------------------------------
-;;;;			       BUFFER NAVIGATION
-;;;; --------------------------------------------------------------------------
-
-;;; Allow the use of the mouse wheel
-(mwheel-install)
-
-;;; Preserve screen position when scrolling...
-(setq scroll-preserve-screen-position 1)
-
-;;; Stop at the end of the file, do not add lines
-(setq next-line-add-newlines nil)
-
-;;; Custom Configurations
-(acs-safe-customization-load "buffer-navigation.el")
-
-
-;;;; --------------------------------------------------------------------------
-;;;;			       BUFFER MANAGEMENT
-;;;; --------------------------------------------------------------------------
-
-;;; Uniquify buffers (avoid name clashes)
-(require 'uniquify)
-(setq uniquify-buffer-name-style 'forward)
-(setq uniquify-after-kill-buffer-p nil)
-(setq uniquify-min-dir-content 2)
-
-(acs-safe-customization-load "buffer-management.el")
-
-;;;; --------------------------------------------------------------------------
-;;;;				   MINIBUFFER
-;;;; --------------------------------------------------------------------------
-
-;;; Completions in minibuffer 
-;;; (define-key minibuffer-local-map [tab] 'comint-dynamic-complete)
-
-;;; Autocomplete buffer names after pressing c-x b
-;; Obsolete
-;;(require 'iswitchb)
-;; (iswitchb-mode 1)
-
-;;; Define buffer completions to ignore
-;;; (setq iswitchb-buffer-ignore '("" ""))
-
-;;;; --------------------------------------------------------------------------
-;;;;				    PRINTING
-;;;; --------------------------------------------------------------------------
-
-(if (string= system-type "windows-nt") 
-    (acs-safe-customization-load "printing.el"))
-
-;;;; --------------------------------------------------------------------------
-;;;;				    ORG MODE
-;;;; --------------------------------------------------------------------------
-
-;;; Locate LATEST org-mode elisp files
-;;;(setq load-path (cons "~/org/org-7.8.10/lisp" load-path))
-;;;(require 'org)
-
-;;; Configure org-mode
-(add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
-(global-set-key "\C-cl" 'org-store-link)
-;;;(global-set-key "\C-ca" 'org-agenda)
-;;;(global-set-key "\C-cb" 'org-iswitchb)
-; (setq-default major-mode 'org-mode)
-
-;; flyspell mode for spell checking everywhere
-;;(add-hook 'org-mode-hook 'turn-on-flyspell 'append)
-
-;; Enable abbrev-mode
-(add-hook 'org-mode-hook (lambda () (abbrev-mode 1)))
-
-;; Define Task States
-;; Set state with c-c t
-;;;(setq org-todo-keywords
-;;;      '((sequence "TODO(t)" "STARTED(s!)" "|" "DONE(d!)")
-;;;	(sequence "OPEN(o)" "CLOSED(c)")))
-
-;; Task States Color Code
-;;;(setq org-todo-keyword-faces 
-;;;      (quote (("TODO" :foreground "red" :weight bold)
-;;;              ("STARTED" :foreground "yellow" :weight bold)
-;;;              ("DONE" :foreground "forest green" :weight normal)
-;;;              ("CANCELED" :foreground "gray" :weight normal))))
-
-;; Commonly Used Tag List
-;; (setq org-tag-alist '(("PLF_PROJECT" . ?P) ("Home" . ?H)))
-
-;; Log completed time for task
-;;;(setq org-log-done 'time)
-
-;; Agenda files
-;; Use c-c [ or c-c ] to add/remove agenda files
-
-;;; Turn off babel execution notification
-;; (setq org-confirm-babel-evaluate nil)
-
-;;; Org Babel Languages
-;;; (setq org-babel-load-languages '((scheme . t) (emacs-lisp . t)))
-;;;(org-babel-do-load-languages
-;;;      'org-babel-load-languages
-;;;      '((emacs-lisp . t)
-;;;        (scheme . t)
-;;;	(sh . t)))
-      
-
-;;; Edit BABEL source in 'current' window
-;;;(setq org-src-window-setup 'current-window)
-
-;;; Set `org-babel-scheme-cmd'
-;;;(setq org-babel-scheme-cmd "gsi -:d-")
-
-;;; Set up Easy Templates
-;;;(eval-after-load 'org
-;;;		 '(progn
-;;;		   (add-to-list 'org-structure-template-alist
-;;;				'("S" "#+begin_src scheme\n?\n#+end_src" ""))))
-
-;;; Customize org-mode for export
-;;;(setq org-footnote-auto-label 'plain)	    ;Plain footnotes
-;;;(setq org-export-html-postamble nil)	    ;No postamble in HTML
-;;;
-;;;
-;;;;;; Add diary entries
-;;;(setq org-agenda-include-diary t)
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				    ORG2BLOG
-;;;; --------------------------------------------------------------------------
-
-;; ;;; RPC for calls to WordPress
-;; ;;;(require 'xml-rpc)
-
-;; ;;; Require org2blog
-;; (setq load-path (cons "c:/emacs/site-lisp/org2blog-0.5/" load-path))
-;; (require 'org2blog-autoloads)
-
-;; ;;; Allow source code formatting in html
-;; (setq org2blog/wp-use-sourcecode-shortcode 't)
-;; (autoload 'htmlize-buffer "~/org/org-7.8.10/contrib/lisp/htmlize.el")
-
-;; ;;; Fix-up html exports before org2blog htmlize
-;; (add-hook 'org-export-html-final-hook
-;; 	  (lambda ()
-;; 	    (while (re-search-forward "<pre.*>" nil t)
-;; 	      (replace-match
-;; 	       "<pre style=\"font-size:10pt\"><span style=\"font-family:monospace\">"
-;; 	       t nil))
-;; 	    (while (re-search-forward "</pre>" nil t)
-;; 	      (replace-match
-;; 	       "</pre></span>" nil t))))
-
-;; ;;; Set-up org2blog
-;; (setq org2blog/wp-blog-alist
-;;       '(
-;; 	("i686os"
-;;          :url "https://i686os.wordpress.com/xmlrpc.php"
-;; 	 :username "suttlesa"
-;; 	 :wp-code t
-;; 	 :tags-as-categories nil)
-;; 	("abrahamsseed"
-;;          :url "https://abrahamsseed.wordpress.com/xmlrpc.php"
-;;          :username "suttlesa"
-;;          :tags-as-categories nil)))
-
-;; ;; #+STARTUP: fninline fnplain 
-;; ;; Set org-footnote-section to the Vocabulary Section
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				     DIRED
@@ -447,35 +147,6 @@ with one containing the contents of the directory.  Otherwise, invoke
   (substitute-key-definition
    'dired-advertised-find-file 'dired-follow-file dired-mode-map))
 
-
-;;; Let W32 figure out what to do with files in DIRED
-
-(defun acs-dired-do-operate-on-file ()
-  "Operate on the current dired file, dependent upon file type."
-  (interactive)
-  (w32-shell-execute "open" (convert-standard-filename (dired-get-filename))))
-
-(defun acs-launch-windows-explorer ()
-  (w32-shell-execute "explore" default-directory))
-
-;;; Define shell program to execute on
-;;; particular file extensions in dired...
-;;(setq dired-guess-shell-alist-user
-;;      (list
-;;       (list "\\.java$" "javac")
-;;       (list "\\.class$" "java")
-;;       (list "\\.scm$"   "MzScheme")))
-
-(if (string= system-type "windows-nt") 
-    (add-hook 'dired-load-hook
-	      (function (lambda ()
-			  (load "dired-x")
-			  ;; (define-key dired-mode-map "&"
-			  ;;	'dired-do-shell-command-in-background)
-			  (define-key dired-mode-map "!"
-			    'acs-dired-do-operate-on-file)
-			  (define-key dired-mode-map "#"
-			    'acs-launch-windows-explorer)))))
 
 ;;;; --------------------------------------------------------------------------
 ;;;;				  PROGRAMMING
@@ -521,83 +192,10 @@ with one containing the contents of the directory.  Otherwise, invoke
 			     filename
 			     (file-name-sans-extension filename)))))))
 
-;;; ---------------
-;;;     PYTHON
-;;; ---------------
-
-(if (string= system-type "windows-nt") 
-    (setq python-shell-interpreter "/mingw64/bin/python3"
-	  python-shell-interpreter-args "-i"))
-(setq python-shell-completion-native-enable nil) ; Disable readline
-(setq python-indent-offset 4)
-
-;;; Anaconda Mode
-(add-hook 'python-mode-hook 'anaconda-mode)
-
-;;; Flycheck
-(add-hook 'python-mode-hook 'flycheck-mode)
-
-;;; PEP 8
-(add-hook 'python-mode-hook 'py-autopep8-enable-on-save)
-
-;;; Send Buffer to Python Shell
-(defun acs-python-send ()
-  (interactive)
-  (python-shell-send-buffer)
-  (python-shell-switch-to-shell)
-  )
-
-(eval-after-load "python"
-  '(progn
-     (define-key python-mode-map (kbd "C-c p") 'acs-python-send)
-     (define-key python-mode-map (kbd "C-h f") 'python-eldoc-at-point)
-     ))
-
-;;; ---------------
-;;;    RACKET
-;;; ---------------
-
-;;; Add Racket to execution path
-;;;(setenv "PATH"
-;;;	(concat "c:/Program Files/Racket;" (getenv "PATH")))
-;;;
-;;;;; Run Racket.exe in REPL buffer
-;;;(setq racket-racket-program "c:/Program Files/Racket/Racket.exe")
-
-;;; ---------------
-;;;      NASM
-;;; ---------------
-;;; Add nasm to execution path
-;;;(setenv "PATH"
-;;;	(concat "c:/acs/bin/nasm;" (getenv "PATH")))
-
-;;; Autoload `nasm-mode' when it is required
-;;; (autoload 'nasm-mode "nasm-mode" "nasm editing mode." t)
-;;; (add-to-list 'auto-mode-alist '("\\.asm$" . nasm-mode))
-;;; (add-to-list 'interpreter-mode-alist '("nasm" . nasm-mode))
-
-
-;;; ---------------
-;;;      GO
-;;; ---------------
-
-;;; Format code before saving
-;;; Define local keys for godef
-;;;(defun my-go-mode-hook ()
-;;;  (add-hook 'before-save-hook 'gofmt-before-save) ; gofmt before every save
-;;;  ; Godef jump key binding                                                      
-;;;  (local-set-key (kbd "M-.") 'godef-jump)
-;;;  (local-set-key (kbd "M-*") 'pop-tag-mark)
-;;;  )
-;;;
-;;;(add-hook 'go-mode-hook 'my-go-mode-hook)
 
 ;;; ---------------
 ;;;   COMMON LISP
 ;;; ---------------
-
-;; Require common lisp extensions to elisp
-(require 'cl)
 
 ;; Specify modes for Lisp file extensions
 (setq auto-mode-alist
@@ -606,178 +204,32 @@ with one containing the contents of the directory.  Otherwise, invoke
 		("\\.lisp$" . lisp-mode)
 		("\\.cl$" . lisp-mode)
 		("\\.scm$" . scheme-mode)
-		)auto-mode-alist))
+		) auto-mode-alist))
 
-;; Setup slime load-path and autoloads
-;;(add-to-list 'load-path "~/.emacs.d/elpa/slime-2.23/")
-;;(require 'slime-autoloads)
+(use-package slime
+  :ensure t
+  :defer t
+  :init
+  (setq slime-lisp-implementations '((sbcl ("sbcl"))))
+  :config
+  (slime-setup '(slime-fancy slime-company)))
 
-;; Define CCL as inferior LISP
-(if (string= system-type "windows-nt") 
-    (setq inferior-lisp-program "c:/ccl/wx86cl64.exe"))
+(use-package slime-company
+  :after (slime company)
+  :ensure t
+  :defer t
+  :config
+  (setq slime-company-completion 'fuzzy))
 
-;; Load slime REPL
-;;(setq slime-contribs '(slime-repl slime-company))
+(use-package slime-fancy
+  :after slime
+  :defer t
+  :ensure nil)
 
-
-;; start slime automatically when we open a lisp file
-;;(defun prelude-start-slime ()
-;;  (unless (slime-connected-p)
-;;    (save-excursion (slime))))
-
-;;; (add-hook 'lisp-mode-hook (lambda () (slime-mode t)))
-;;; (add-hook 'inferior-lisp-mode-hook (lambda () (inferior-slime-mode t)))
-;;(add-hook 'slime-mode-hook 'prelude-start-slime)
-
-;;; LISP documentation
-(acs-safe-customization-load "cltl2.el")
-;;(setq cltl2-root-url "c:/msys64/home/asuttles/doc/lisp/cltl")
-
-;;; Keymap
-;;(defun my-slime-mode-hook ()
-;;  "define keys for my functions to slime mode"
-;;  (interactive)
-;;  (define-key slime-mode-map (kbd "C-c C-d l") 'cltl2-lookup))
-
-;;(add-hook 'slime-mode-hook 'my-slime-mode-hook)
-
-;;; ---------------
-;;;     SCHEME
-;;; ---------------
-
-;;(setq scheme-program-name "csi -:c")
-;;(setq geiser-active-implementations '(chicken))
-(setq scheme-program-name "guile")
-(setq geiser-active-implementations '(guile))
-;;(setq load-path (cons "c:/msys64/usr/local/bin/" load-path))
-
-;; Paredit
-;; (autoload 'paredit-mode "paredit"
-;;   "Minor mode for pseudo-structurally editing Lisp code." t)
-;; (add-hook 'geiser-mode-hook (lambda () (paredit-mode +1)))
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				      LUA
-;;;; --------------------------------------------------------------------------
-
-;;;(autoload 'lua-mode "lua-mode" "Lua editing mode." t)
-;;;(add-to-list 'auto-mode-alist '("\\.lua$" . lua-mode))
-;;;(add-to-list 'interpreter-mode-alist '("lua" . lua-mode))
-;;;
-;;;(defun run-lua ()
-;;;  "Run the lua REPL using commint."
-;;;  (interactive)
-;;;  (lua-start-process))
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				     SHELL
-;;;; --------------------------------------------------------------------------
-
-;; Cygwin Shell System and Tools
-
-(if (string= system-type "windows-nt")
-    (progn
-      (let ((shell-executable "c:/msys64/usr/bin/bash.exe"))
-	(if (file-executable-p shell-executable)
-	    (progn
-	      (setq explicit-shell-file-name shell-executable)
-	      (setq shell-file-name "bash")
-	      (setq explicit-bash.exe-args '("--login" "-i"))
- 	      (setenv "SHELL" shell-file-name)
-	      (add-hook 'comint-output-filter-functions 'comint-strip-ctrl-m nil t))))
-      (setq w32-quote-process-args ?\")
-      (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)))
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				  MAN and INFO
-;;;; --------------------------------------------------------------------------
-
-;; Set the INFO path
-;; Cannot change env var in MS Windows
-;;(setq Info-default-directory-list 
-;;      (append (list "c:/acs/info") Info-default-directory-list))
-(if (string= system-type "windows-nt") 
-    (setq Info-default-directory-list (list "c:/acs/info")))
-
-;;; Man pages open in "this" frame, "this" window
-(setq Man-notify-method 'pushy)
-
-;;;; --------------------------------------------------------------------------
-;;;;				     E-MAIL
-;;;;				    SENDMAIL
-;;;; --------------------------------------------------------------------------
-
-;;; See GNUs
-
-;; orgstruct++-mode is enabled in Gnus message buffers to aid in creating 
-;;   structured email messages.
-
-;;;(add-hook 'message-mode-hook 'orgstruct++-mode 'append)
-;;;(add-hook 'message-mode-hook 'turn-on-auto-fill 'append)
-;;;(add-hook 'message-mode-hook 'bbdb-define-all-aliases 'append)
-;;;(add-hook 'message-mode-hook 'orgtbl-mode 'append)
-;;;(add-hook 'message-mode-hook 'turn-on-flyspell 'append)
-;;;(add-hook 'message-mode-hook '(lambda () (setq fill-column 72)) 'append)
-;;;(add-hook 'message-mode-hook '(lambda () (local-set-key (kbd "C-c M-o") 'org-mime-htmlize)) 'append)
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				    SPELLING
-;;;; --------------------------------------------------------------------------
-
-;;; Note: This aspell is non-curses downloaded from: http://aspell.net/win32/
-
-;;; Put aspell on the PATH and Execution Path
-(if (string= system-type "windows-nt")
-    (progn
-      (cond ((and 
-	      (not (string-match "aspell" (getenv "PATH")))
-	      (file-exists-p "C:/aspell/bin")) 
-	     (setenv "PATH" (concat (getenv "PATH") ";C:\\aspell\\bin"))))
-
-      (setq exec-path 
-	    (append exec-path
-		    (cond ((member "C:/aspell/bin" exec-path) nil)
-			  (t (list "C:/aspell/bin")))))
-
-      ;; Define aspell as Spelling Program
-      (setq ispell-program-name "C:\\aspell\\bin\\aspell.exe")
-
-      ;; Flyspell 'list' Command
-      (setq ispell-list-command "list")))
-
-;;;; --------------------------------------------------------------------------
-;;;;				   ESV Bible
-;;;; --------------------------------------------------------------------------
-
-(if (equal system-type 'windows-nt)
-    (progn
-      (require 'esv)
-
-      ;; C-c e looks up a passage and displays it in a pop-up window
-      (define-key global-map [(control c) ?e] 'esv-passage)
-
-      ;; C-c i inserts an ESV passage in plain-text format at point
-      (define-key global-map [(control c) ?i] 'esv-insert-passage)
-
-      ;; "TEST" or "IP"
-      (setq esv-key "IP")))
-
-;;;(add-hook 'text-mode-hook 'turn-on-esv-mode)
-;;;(add-hook 'org-mode-hook 'turn-on-esv-mode)
-
-
-;;;; --------------------------------------------------------------------------
-;;;;				 IMAGE VIEWING
-;;;; --------------------------------------------------------------------------
-
-;;; Enable image viewing
-(auto-image-file-mode t)
-;;; (setq image-file-name-extensions 
-;;;      (append image-file-name-extensions (list "eps" "jpg" "png" )))
+(use-package slime-repl-ansi-color
+  :ensure t
+  :defer t
+  :hook (slime-repl-mode . slime-repl-ansi-color-mode))
 
 
 ;;;; --------------------------------------------------------------------------
@@ -787,14 +239,6 @@ with one containing the contents of the directory.  Otherwise, invoke
 ;;; Set decimal precision for calculator
 (setq calculator-number-digits 6)
 
-;;; Custom Configurations
-(acs-safe-customization-load "utility-functions.el")
-
-;;;; --------------------------------------------------------------------------
-;;;;			       DOCUMENT TEMPLATES
-;;;; --------------------------------------------------------------------------
-
-;;; Document templates
 
 ;;;; --------------------------------------------------------------------------
 ;;;;			       GLOBAL KEYBINDINGS
@@ -954,19 +398,12 @@ with one containing the contents of the directory.  Otherwise, invoke
 (global-set-key [(meta Q)] 'unfill-region)
 
 
-;;;; --------------------------------------------------------------------------
-;;;;				 CUSTOMIZATIONS
-;;;; --------------------------------------------------------------------------
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   (quote
-    (company-c-headers paredit geiser slime-company company-jedi py-autopep8 flycheck company-anaconda elpy anaconda-mode go-mode nasm-mode))))
-
+ '(package-selected-packages nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
